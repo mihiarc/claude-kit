@@ -1,0 +1,477 @@
+#!/usr/bin/env python3
+"""peers: a local web page of the Claude Code sessions running on this Mac.
+
+Shows which sessions are live, under what names, in which checkout and branch,
+whether each is busy, waiting on you, or idle, what each has claimed, and who
+messaged whom.
+
+  peers                       start the page (http://127.0.0.1:4790) and open it
+  peers stop                  stop the page's server
+  peers claim "text"          record what this session is working on (run inside a session)
+  peers claim                 print this session's claim
+  peers claim --clear         remove this session's claim
+  peers claim --name X "..."  claim on behalf of session X (from outside a session)
+  peers log-send              PreToolUse hook (matcher SendMessage): log one send
+  peers session-start         SessionStart hook: open the page unless a tab already shows it
+
+Sources:
+  sessions   `claude agents --json`, interactive and background
+  checkout   `git rev-parse` in each session's cwd
+  messages   messages.jsonl, one line per SendMessage, appended by the log-send hook
+  claims     claims/<name>.json, one file per session name
+
+Messages, claims and the server's pid and logs live in ~/.claude/peers, or in
+PEERS_HOME when set. Folders under PEERS_CODE_ROOT (default ~/Github) are shown
+relative to it.
+
+The page draws its connection diagram with web/vendor/elk.bundled.js (elkjs 0.12.0,
+EPL-2.0), served locally so the page works offline.
+
+Python standard library only. The server listens on 127.0.0.1 and answers only
+requests addressed to 127.0.0.1 or localhost, so neither the LAN nor a web page
+using DNS rebinding can read it.
+"""
+
+import argparse
+import json
+import os
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import threading
+import time
+import urllib.request
+import webbrowser
+from collections import Counter
+from datetime import datetime, timezone
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+WEB = Path(__file__).resolve().parent.parent / "web"
+DATA = Path(os.environ.get("PEERS_HOME") or Path.home() / ".claude" / "peers")
+MESSAGES = DATA / "messages.jsonl"
+CLAIMS = DATA / "claims"
+PIDFILE = DATA / "server.pid"
+SERVER_LOG = DATA / "server.log"
+PORT = int(os.environ.get("PEERS_PORT", "4790"))
+ALLOWED_HOSTS = {f"127.0.0.1:{PORT}", f"localhost:{PORT}"}
+ALLOWED_ORIGINS = {f"http://{host}" for host in ALLOWED_HOSTS}
+HOME = str(Path.home())
+CODE_ROOT = (os.environ.get("PEERS_CODE_ROOT") or HOME + "/Github").rstrip("/") + "/"
+STATIC = {"/vendor/elk.bundled.js": ("vendor/elk.bundled.js", "text/javascript; charset=utf-8")}
+# An open tab polls every 2 s, but browsers slow timers in background tabs to about
+# once a minute, so a tab counts as open if it polled within this many seconds.
+WATCH_WINDOW = 90
+HOOK_LOG = DATA / "hook.log"
+
+
+def now_iso():
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def short_path(path):
+    """Paths under CODE_ROOT relative to it, everything else relative to ~."""
+    if path.startswith(CODE_ROOT):
+        return path[len(CODE_ROOT):]
+    if path == HOME or path.startswith(HOME + "/"):
+        return "~" + path[len(HOME):]
+    return path
+
+
+# --- Sessions ---------------------------------------------------------------
+
+def claude_agents():
+    """Live sessions from `claude agents --json`; [] if the CLI is unavailable."""
+    exe = shutil.which("claude") or HOME + "/.local/bin/claude"
+    try:
+        out = subprocess.run([exe, "agents", "--json"], capture_output=True, text=True, timeout=10)
+        return json.loads(out.stdout or "[]")
+    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+        return []
+
+
+def own_session():
+    """The session this process runs inside, found through its messaging socket's pid."""
+    match = re.search(r"/(\d+)\.sock$", os.environ.get("CLAUDE_CODE_MESSAGING_SOCKET", ""))
+    if not match:
+        return None
+    pid = int(match.group(1))
+    return next((s for s in claude_agents() if s.get("pid") == pid), None)
+
+
+_git_cache = {}
+
+
+def git_info(cwd):
+    """Checkout root, branch and worktree flag for a directory; None outside a repo."""
+    hit = _git_cache.get(cwd)
+    if hit and time.monotonic() - hit[0] < 5:
+        return hit[1]
+    info = None
+    try:
+        out = subprocess.run(
+            ["git", "-C", cwd, "rev-parse", "--path-format=absolute",
+             "--show-toplevel", "--git-dir", "--git-common-dir", "--abbrev-ref", "HEAD"],
+            capture_output=True, text=True, timeout=3)
+        if out.returncode == 0:
+            top, git_dir, common_dir, branch = out.stdout.splitlines()[:4]
+            # A linked worktree has its own git dir inside the main repo's common dir.
+            info = {"checkout": top, "branch": branch, "worktree": git_dir != common_dir}
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        pass
+    _git_cache[cwd] = (time.monotonic(), info)
+    return info
+
+
+# --- Claims -----------------------------------------------------------------
+
+def claim_path(name):
+    return CLAIMS / (re.sub(r"[^A-Za-z0-9._-]", "_", name) + ".json")
+
+
+def read_claims():
+    claims = {}
+    for path in CLAIMS.glob("*.json"):
+        try:
+            claim = json.loads(path.read_text())
+            claims[claim["name"]] = claim
+        except (OSError, ValueError, KeyError):
+            continue
+    return claims
+
+
+def write_claim(name, text, by):
+    """Set or (with empty text) clear a session's claim. Returns the claim or None."""
+    path = claim_path(name)
+    text = " ".join(text.split())[:500]
+    if not text:
+        path.unlink(missing_ok=True)
+        return None
+    CLAIMS.mkdir(parents=True, exist_ok=True)
+    claim = {"name": name, "text": text, "by": by, "at": now_iso()}
+    tmp = path.with_name(f".{path.stem}.{os.getpid()}.tmp")
+    tmp.write_text(json.dumps(claim))
+    os.replace(tmp, path)
+    return claim
+
+
+# --- Messages ---------------------------------------------------------------
+
+def recent_messages(limit=200):
+    """Newest-first records from the tail of messages.jsonl."""
+    tail_bytes = 256 * 1024
+    try:
+        with open(MESSAGES, "rb") as f:
+            size = f.seek(0, os.SEEK_END)
+            f.seek(max(0, size - tail_bytes))
+            lines = f.read().decode("utf-8", "replace").splitlines()
+    except OSError:
+        return []
+    if size > tail_bytes:
+        lines = lines[1:]  # the first line of a mid-file read is partial
+    records = []
+    for line in reversed(lines):
+        try:
+            records.append(json.loads(line))
+        except ValueError:
+            continue
+        if len(records) >= limit:
+            break
+    return records
+
+
+def log_send():
+    """PreToolUse hook for SendMessage: append one line to messages.jsonl.
+
+    Runs async, so it never delays the send. The hook payload has the sender's
+    session_id but not its name, so the name is looked up while it is still live.
+    """
+    try:
+        event = json.load(sys.stdin)
+        tool_input = event.get("tool_input") or {}
+        agents = claude_agents()
+        session_id = event.get("session_id") or ""
+        sender = next((a for a in agents if a.get("sessionId") == session_id), {})
+        to = re.sub(r"\s*\[[^\]]*\]$", "", str(tool_input.get("to", "")))
+        live_names = {a.get("name") for a in agents if a.get("name")}
+        text = str(tool_input.get("message") or "").strip()
+        record = {
+            "at": now_iso(),
+            "from": sender.get("name") or session_id[:8],
+            "fromSessionId": session_id,
+            "fromCwd": short_path(event.get("cwd", "")),
+            "agentId": event.get("agent_id"),
+            "to": to,
+            # Sends to subagents, teammates and "main" use the same tool.
+            "crossSession": to in live_names and to != sender.get("name"),
+            "firstLine": text.splitlines()[0][:200] if text else "",
+            "notifyWhenIdle": bool(tool_input.get("notify_when_idle")),
+        }
+        with open(MESSAGES, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record) + "\n")
+    except Exception as exc:  # a logging hook must never break a send
+        print(f"peers log-send: {exc}", file=sys.stderr)
+    return 0
+
+
+# --- Page state ---------------------------------------------------------------
+
+_agents_cache = [0.0, []]
+
+
+def page_state():
+    if time.monotonic() - _agents_cache[0] > 1.5:
+        _agents_cache[:] = [time.monotonic(), claude_agents()]
+    claims = read_claims()
+    sessions = []
+    for agent in _agents_cache[1]:
+        cwd = agent.get("cwd") or ""
+        git = git_info(cwd) if cwd else None
+        name = agent.get("name") or ""
+        sessions.append({
+            "name": name,
+            "label": name or (agent.get("sessionId") or "?")[:8],
+            "sessionId": agent.get("sessionId"),
+            "id": agent.get("id"),
+            "kind": agent.get("kind"),
+            "pid": agent.get("pid"),
+            # Interactive sessions report `status`; background ones report `state`.
+            "activity": agent.get("status") or agent.get("state") or "unknown",
+            "waitingFor": agent.get("waitingFor"),
+            "cwd": short_path(cwd),
+            "cwdMissing": bool(cwd) and not os.path.isdir(cwd),
+            "checkout": short_path(git["checkout"]) if git else None,
+            "branch": git["branch"] if git else None,
+            "worktree": bool(git and git["worktree"]),
+            "startedAt": agent.get("startedAt"),
+            "claim": claims.get(name) if name else None,
+        })
+
+    alerts = []
+    by_checkout = {}
+    for s in sessions:
+        if s["checkout"]:
+            by_checkout.setdefault(s["checkout"], []).append(s["label"])
+    for checkout, labels in sorted(by_checkout.items()):
+        if len(labels) > 1:
+            alerts.append({"kind": "shared-checkout", "checkout": checkout, "sessions": labels})
+    for name, count in Counter(s["name"] for s in sessions if s["name"]).items():
+        if count > 1:
+            alerts.append({"kind": "duplicate-name", "name": name, "count": count})
+
+    live = {s["name"] for s in sessions}
+    return {
+        "generatedAt": now_iso(),
+        "sessions": sorted(sessions, key=lambda s: (s["checkout"] or s["cwd"], s["label"])),
+        "alerts": alerts,
+        "otherClaims": sorted((c for n, c in claims.items() if n not in live),
+                              key=lambda c: c["at"], reverse=True),
+        "messages": recent_messages(),
+    }
+
+
+# --- Server -----------------------------------------------------------------
+
+_viewers = {"last_poll": 0.0, "last_open": 0.0}
+_viewers_lock = threading.Lock()
+
+
+def grant_open():
+    """True at most once per window, and only while no tab is polling the page."""
+    with _viewers_lock:
+        now = time.time()
+        if now - max(_viewers["last_poll"], _viewers["last_open"]) < WATCH_WINDOW:
+            return False
+        _viewers["last_open"] = now
+        return True
+
+
+class Handler(BaseHTTPRequestHandler):
+    def _send(self, code, body, content_type="application/json", cache="no-store"):
+        data = body if isinstance(body, bytes) else json.dumps(body).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", cache)
+        self.end_headers()
+        self.wfile.write(data)
+
+    def _host_ok(self):
+        return self.headers.get("Host") in ALLOWED_HOSTS
+
+    def do_GET(self):
+        if not self._host_ok():
+            return self._send(403, {"error": "forbidden host"})
+        if self.path in ("/", "/index.html"):
+            return self._send(200, (WEB / "index.html").read_bytes(), "text/html; charset=utf-8")
+        if self.path == "/api/state":
+            _viewers["last_poll"] = time.time()
+            return self._send(200, page_state())
+        if self.path in STATIC:
+            file, content_type = STATIC[self.path]
+            return self._send(200, (WEB / file).read_bytes(), content_type, "max-age=86400")
+        return self._send(404, {"error": "not found"})
+
+    def do_POST(self):
+        # A JSON body forces a CORS preflight, which this server never approves,
+        # so other web pages cannot write claims.
+        content_type = self.headers.get("Content-Type", "").split(";")[0].strip()
+        origin = self.headers.get("Origin")
+        if not self._host_ok() or content_type != "application/json" or (
+                origin and origin not in ALLOWED_ORIGINS):
+            return self._send(403, {"error": "forbidden"})
+        if self.path == "/api/open-request":
+            return self._send(200, {"open": grant_open()})
+        if self.path != "/api/claim":
+            return self._send(404, {"error": "not found"})
+        try:
+            length = min(int(self.headers.get("Content-Length") or 0), 10_000)
+            body = json.loads(self.rfile.read(length) or b"{}")
+            name = str(body.get("name", "")).strip()
+        except (ValueError, AttributeError):
+            return self._send(400, {"error": "bad request"})
+        if not name:
+            return self._send(400, {"error": "name required"})
+        return self._send(200, {"claim": write_claim(name, str(body.get("text", "")), "dashboard")})
+
+    def log_message(self, fmt, *args):
+        pass  # server.log keeps errors only
+
+
+def serve():
+    server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+    PIDFILE.write_text(str(os.getpid()))
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+    try:
+        server.serve_forever()
+    finally:
+        PIDFILE.unlink(missing_ok=True)
+
+
+def server_pid():
+    """The running server's pid, confirmed by its command line; None if not running."""
+    try:
+        pid = int(PIDFILE.read_text())
+        command = subprocess.run(["ps", "-o", "command=", "-p", str(pid)],
+                                 capture_output=True, text=True).stdout
+    except (OSError, ValueError):
+        return None
+    return pid if re.search(r"\bpeers(\.py)? serve\b", command) else None
+
+
+def ensure_server():
+    """Start the server in the background unless it is running; return the page's URL."""
+    if not server_pid():
+        with open(SERVER_LOG, "a") as log:
+            subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "serve"],
+                             stdin=subprocess.DEVNULL, stdout=log, stderr=log,
+                             start_new_session=True)
+        for _ in range(30):
+            if server_pid():
+                break
+            time.sleep(0.1)
+        else:
+            sys.exit(f"peers: server did not start; see {SERVER_LOG}")
+    return f"http://127.0.0.1:{PORT}/"
+
+
+def start():
+    url = ensure_server()
+    print(url)
+    webbrowser.open(url)
+
+
+def session_start():
+    """SessionStart hook: make sure the server runs, and open the page in the background
+    unless a browser tab already shows it. Only interactive sessions open it, so
+    background (--bg) and scripted runs never touch the browser. Each decision is
+    appended to hook.log."""
+    try:
+        session_id = str(json.load(sys.stdin).get("session_id") or "")
+    except ValueError:
+        session_id = ""
+    kind = None
+    for _ in range(10):  # a new session can take a moment to appear in the registry
+        kind = next((a.get("kind") for a in claude_agents() if a.get("sessionId") == session_id), None)
+        if kind:
+            break
+        time.sleep(0.5)
+    if kind != "interactive":
+        decision = f"skipped: {kind or 'session not in claude agents'}"
+    else:
+        url = ensure_server()
+        request = urllib.request.Request(url + "api/open-request", data=b"{}", method="POST",
+                                         headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(request, timeout=5) as response:
+                should_open = bool(json.load(response).get("open"))
+        except (OSError, ValueError):
+            should_open = False
+        if should_open:
+            subprocess.run(["open", "-g", url], check=False)  # -g: leave the terminal in front
+        decision = "opened the page" if should_open else "a tab already shows the page"
+    with open(HOOK_LOG, "a") as log:
+        log.write(f"{now_iso()} {session_id[:8] or '?'} {decision}\n")
+    return 0
+
+
+def stop():
+    pid = server_pid()
+    if not pid:
+        print("peers: server not running")
+        return
+    os.kill(pid, signal.SIGTERM)
+    print(f"peers: stopped server (pid {pid})")
+
+
+def claim(args):
+    name = args.name
+    if not name:
+        me = own_session()
+        if not me or not me.get("name"):
+            sys.exit("peers claim: not inside a named Claude session; pass --name <session>")
+        name = me["name"]
+    if args.clear:
+        write_claim(name, "", "session")
+        print(f"{name}: claim cleared")
+    elif args.text:
+        saved = write_claim(name, " ".join(args.text), "cli" if args.name else "session")
+        print(f"{name}: {saved['text']}")
+    else:
+        current = read_claims().get(name)
+        print(f"{name}: {current['text']}" if current else f"{name}: no claim")
+
+
+def main():
+    parser = argparse.ArgumentParser(prog="peers", description=__doc__.split("\n\n")[0])
+    sub = parser.add_subparsers(dest="command")
+    sub.add_parser("start", help="start the server and open the page (the default)")
+    sub.add_parser("stop", help="stop the server")
+    sub.add_parser("serve", help="run the server in the foreground")
+    sub.add_parser("log-send", help="PreToolUse hook for SendMessage")
+    sub.add_parser("session-start", help="SessionStart hook: open the page unless a tab already shows it")
+    claim_parser = sub.add_parser("claim", help="set, show or clear a session's claim")
+    claim_parser.add_argument("text", nargs="*")
+    claim_parser.add_argument("--name", help="session name (default: the session this runs in)")
+    claim_parser.add_argument("--clear", action="store_true")
+    args = parser.parse_args()
+    DATA.mkdir(parents=True, exist_ok=True)
+
+    if args.command in (None, "start"):
+        start()
+    elif args.command == "stop":
+        stop()
+    elif args.command == "serve":
+        serve()
+    elif args.command == "log-send":
+        sys.exit(log_send())
+    elif args.command == "session-start":
+        sys.exit(session_start())
+    elif args.command == "claim":
+        claim(args)
+
+
+if __name__ == "__main__":
+    main()

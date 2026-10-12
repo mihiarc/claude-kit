@@ -1,0 +1,62 @@
+{
+  "name": "claude-kit",
+  "owner": {
+    "name": "Chris Mihiar",
+    "url": "https://github.com/mihiarc"
+  },
+  "metadata": {
+    "description": "Skills, hooks and small tools for Claude Code."
+  },
+  "plugins": [
+    {
+      "name": "peers",
+      "source": "./plugins/peers",
+      "description": "A local web page of the Claude Code sessions on this machine: which are working, waiting on you or idle, what each has claimed, and who messaged whom."
+    },
+    {
+      "name": "stacked-pr-guard",
+      "source": "./plugins/stacked-pr-guard",
+      "description": "Blocks deleting a branch that open pull requests are based on, so GitHub doesn't close the PRs stacked on it."
+    },
+    {
+      "name": "codebase-audit",
+      "source": "./plugins/codebase-audit",
+      "description": "A full critical review of a codebase or component, with severity-rated findings checked against current best practice and filed as GitHub issues once you confirm."
+    },
+    {
+      "name": "disk-cleanup-inventory",
+      "source": "./plugins/disk-cleanup-inventory",
+      "description": "A tiered inventory of what is using disk space, delivered as a checklist worksheet; deletes only what you tick."
+    },
+    {
+      "name": "downloads-tidy",
+      "source": "./plugins/downloads-tidy",
+      "description": "Files and declutters ~/Downloads against your own filing rules and existing folders, leaving it flat."
+    },
+    {
+      "name": "ec2-spinup",
+      "source": "./plugins/ec2-spinup",
+      "description": "Starts a small, tagged, self-terminating EC2 worker in a chosen region, with instance-profile auth and IP-restricted SSH."
+    },
+    {
+      "name": "handoff",
+      "source": "./plugins/handoff",
+      "description": "Writes a kickoff prompt so a new Claude session inherits this one's goal, sources, settled decisions and risks."
+    },
+    {
+      "name": "human-handoff",
+      "source": "./plugins/human-handoff",
+      "description": "Packages finished work for a human collaborator and drafts the covering note; sends only on your word."
+    },
+    {
+      "name": "residue-sweep",
+      "source": "./plugins/residue-sweep",
+      "description": "Removes development residue (history-narrating comments, stale names, dead code, doc drift) without changing behavior."
+    },
+    {
+      "name": "speaker-prep",
+      "source": "./plugins/speaker-prep",
+      "description": "Turns a deck or brief into talking points or a timed script, with print-ready PDFs."
+    }
+  ]
+}

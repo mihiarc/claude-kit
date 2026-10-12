@@ -1,0 +1,11 @@
+{
+  "name": "human-handoff",
+  "version": "0.1.0",
+  "description": "Packages finished work for a human collaborator and drafts the covering note; sends only on your word.",
+  "author": {
+    "name": "Chris Mihiar",
+    "url": "https://github.com/mihiarc"
+  },
+  "repository": "https://github.com/mihiarc/claude-kit",
+  "license": "MIT"
+}

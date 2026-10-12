@@ -1,0 +1,268 @@
+<!--
+  DISK-CLEANUP WORKSHEET TEMPLATE
+  ================================
+  Publish this with the Artifact tool (drop the comment + this banner; for the
+  Artifact tool also drop any <!doctype>/<html>/<head>/<body> wrapper — the host
+  adds it). For a standalone ~/Downloads copy, wrap it in that skeleton instead.
+
+  FILL IN TWO THINGS:
+  1. The ITEMS array near the bottom — one object per inventoried item:
+       id     unique slug
+       tier   "safe" | "data" | "verify" | "downloads"
+       nm     human name
+       gb     size in GB (number)
+       pth    path(s) shown under the name (literal, so the user can verify)
+       note   one line; wrap regenerable phrasing in <span class="reborn">…</span>
+              and keep-warnings in <span class="keep">…</span>; <span class="seen">date</span>
+       review a read-only command to inspect it (du -sh / ls -lhS)
+       del    the deletion command. For mixed folders or category-selects, make it a
+              COMMENTED command (lines starting with #) so nothing runs blind.
+  2. The disk-gauge + eyebrow numbers in <header> (marked FILL-IN below).
+
+  The hero total, per-tier subtotals, space map, live selection math, and the
+  copyable review/delete command blocks all derive from ITEMS automatically.
+-->
+<title>Disk Cleanup Inventory</title>
+<style>
+  :root{
+    --ground:#12151C; --panel:#1A1E27; --panel-2:#20242F; --line:#2A2F3A;
+    --text:#E4E7EE; --muted:#8C94A4; --faint:#5C6373;
+    --amber:#E8A13C; --teal:#5BB8A6; --coral:#D9734E;
+    --mono:ui-monospace,"SF Mono",Menlo,Monaco,monospace;
+    --sans:-apple-system,"SF Pro Display","SF Pro Text","Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--ground);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.5;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px 120px}
+  header{padding:48px 0 28px;border-bottom:1px solid var(--line)}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}
+  .eyebrow .sep{color:var(--faint)}
+  .hero{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px 28px;margin:22px 0 6px}
+  .hero-num{font-size:clamp(56px,11vw,116px);font-weight:800;line-height:.86;letter-spacing:-.035em;color:var(--amber);font-variant-numeric:tabular-nums;transition:color .35s ease}
+  .hero-num.idle{color:var(--text)}
+  .hero-unit{font-size:.3em;font-weight:700;letter-spacing:-.01em;color:inherit;margin-left:.08em}
+  .hero-cap{font-family:var(--mono);font-size:14px;color:var(--muted);padding-bottom:14px;max-width:32ch}
+  .hero-cap b{color:var(--text);font-weight:600}
+  .lead{color:var(--muted);max-width:62ch;margin:14px 0 0}
+  .lead b{color:var(--text);font-weight:600}
+  .gauge{margin:30px 0 6px}
+  .gauge-bar{display:flex;height:30px;border-radius:6px;overflow:hidden;border:1px solid var(--line);background:var(--panel)}
+  .gauge-seg{display:flex;align-items:center;padding:0 10px;font-family:var(--mono);font-size:11.5px;white-space:nowrap;font-weight:600}
+  .seg-used{background:repeating-linear-gradient(135deg,#43566b,#43566b 7px,#3c4d60 7px,#3c4d60 14px);color:#cdd6e2}
+  .seg-other{background:#2c333f;color:#aeb6c4}
+  .seg-free{background:transparent;color:var(--faint);border-left:1px dashed var(--line)}
+  .gauge-key{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:10px;font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+  .map-title{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:34px 0 10px}
+  .map{display:flex;gap:3px;height:64px}
+  .blk{position:relative;border-radius:4px;min-width:5px;overflow:hidden;transition:transform .12s ease}
+  .blk:hover{transform:translateY(-3px)}
+  .blk span{position:absolute;left:7px;top:6px;font-family:var(--mono);font-size:10.5px;line-height:1.25;color:#0d0f14;font-weight:600;text-shadow:0 1px 0 rgba(255,255,255,.12)}
+  .blk small{display:block;font-weight:700;font-size:11px}
+  .t-safe{background:var(--teal)} .t-data{background:var(--amber)} .t-verify{background:var(--coral)} .t-downloads{background:#c9923f}
+  .selbar{position:sticky;top:0;z-index:20;margin:0 -24px;padding:14px 24px;background:rgba(18,21,28,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;gap:14px 20px}
+  .selbar .count{font-family:var(--mono);font-size:14px}
+  .selbar .count b{color:var(--amber);font-size:18px;font-variant-numeric:tabular-nums}
+  .selbar .spacer{flex:1}
+  .btn{font-family:var(--mono);font-size:12.5px;background:var(--panel-2);color:var(--text);border:1px solid var(--line);padding:8px 14px;border-radius:6px;cursor:pointer;transition:border-color .15s,background .15s,color .15s}
+  .btn:hover{border-color:var(--muted)}
+  .btn:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  .btn.primary{background:var(--amber);color:#15110a;border-color:var(--amber);font-weight:700}
+  .btn.primary:hover{background:#f0ac4d}
+  .btn.ghost:hover{color:var(--coral);border-color:var(--coral)}
+  section{margin-top:40px}
+  .sec-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 16px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+  .sec-num{font-family:var(--mono);font-size:12px;color:var(--faint)}
+  .sec-title{font-size:20px;font-weight:700;letter-spacing:-.01em}
+  .sec-sub{color:var(--muted);font-size:13.5px}
+  .sec-total{margin-left:auto;font-family:var(--mono);font-size:13px;color:var(--muted)}
+  .sec-total b{color:var(--text)}
+  .tier-tag{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.1em;padding:3px 8px;border-radius:4px;font-weight:600}
+  .tag-safe{color:var(--teal);background:rgba(91,184,166,.12)}
+  .tag-data{color:var(--amber);background:rgba(232,161,60,.12)}
+  .tag-verify{color:var(--coral);background:rgba(217,115,78,.13)}
+  .tag-downloads{color:#d6a657;background:rgba(201,146,63,.13)}
+  .row{display:grid;grid-template-columns:26px minmax(0,1fr) 120px 78px;align-items:center;gap:14px;padding:14px 12px;border-bottom:1px solid var(--line);border-radius:8px;transition:background .12s}
+  .row:hover{background:var(--panel)}
+  .row.on{background:rgba(232,161,60,.06)}
+  .row input[type=checkbox]{appearance:none;width:18px;height:18px;border:1.5px solid var(--faint);border-radius:5px;cursor:pointer;position:relative;background:var(--panel);transition:.12s;margin:0}
+  .row input:hover{border-color:var(--muted)}
+  .row input:checked{background:var(--amber);border-color:var(--amber)}
+  .row input:checked::after{content:"";position:absolute;left:5px;top:1px;width:5px;height:10px;border:solid #15110a;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .row input:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  .cell-name{min-width:0}
+  .nm{font-weight:600;font-size:14.5px}
+  .pth{font-family:var(--mono);font-size:11.5px;color:var(--muted);word-break:break-all;margin-top:1px}
+  .note{font-size:12.5px;color:var(--muted);margin-top:5px}
+  .note .reborn{color:var(--teal)} .note .keep{color:var(--coral)} .note .seen{font-family:var(--mono);color:var(--faint)}
+  .bar-wrap{height:8px;background:var(--panel-2);border-radius:5px;overflow:hidden}
+  .bar{height:100%;border-radius:5px}
+  .sz{font-family:var(--mono);font-size:14px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+  .sz small{display:block;font-size:10px;color:var(--faint);font-weight:400;letter-spacing:.04em}
+  .cmds{margin-top:48px;border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden}
+  .cmds-head{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+  .cmds-head h3{margin:0;font-size:16px}
+  .cmds-head .spacer{flex:1}
+  .warn{font-family:var(--mono);font-size:12px;color:var(--coral);display:flex;align-items:center;gap:7px}
+  .cmd-block{padding:0 20px}
+  .cmd-block h4{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:18px 0 8px;display:flex;align-items:center;gap:10px}
+  .cmd-block h4 .cp{margin-left:auto}
+  pre{margin:0 0 18px;background:#0d1016;border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.7;color:#c9d2df}
+  pre .c{color:var(--faint)} pre .rm{color:var(--coral)} pre .du{color:var(--teal)}
+  .empty{padding:40px 20px;color:var(--muted);font-family:var(--mono);font-size:13px;text-align:center}
+  footer{margin-top:44px;color:var(--faint);font-family:var(--mono);font-size:11.5px;line-height:1.7}
+  @media(max-width:680px){
+    .row{grid-template-columns:24px 1fr;grid-template-areas:"chk name" ". bar" ". sz"}
+    .row .cell-chk{grid-area:chk} .row .cell-name{grid-area:name}
+    .row .cell-bar{grid-area:bar;margin-top:6px} .row .cell-sz{grid-area:sz;text-align:left;margin-top:4px}
+    .sz{text-align:left} .map{height:52px}
+  }
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <!-- FILL-IN: eyebrow facts -->
+    <div class="eyebrow">
+      <span>Disk Inventory</span><span class="sep">/</span>
+      <span>~USER~</span><span class="sep">/</span>
+      <span>scanned ~DATE~</span><span class="sep">/</span>
+      <span>~VOLUME~ · ~PCT~% used</span>
+    </div>
+    <div class="hero">
+      <div class="hero-num idle" id="heroNum">0<span class="hero-unit">GB</span></div>
+      <div class="hero-cap" id="heroCap"></div>
+    </div>
+    <p class="lead">Everything below can be <b>re-downloaded, rebuilt, or regenerated</b> — or is just clutter. It's sorted by how safe it is to remove. Check what you want gone; totals update live and review-then-delete commands build at the bottom. <b>This page never deletes anything</b> — you run the commands after reviewing.</p>
+
+    <!-- FILL-IN: gauge segment flex values (proportional GB) + key text -->
+    <div class="gauge">
+      <div class="gauge-bar" role="img" aria-label="Disk usage">
+        <div class="gauge-seg seg-used" style="flex:~USEDGB~">Used ~USEDGB~G</div>
+        <div class="gauge-seg seg-free" style="flex:~FREEGB~">~FREEGB~G free</div>
+      </div>
+      <div class="gauge-key"><span>~USEDGB~ GB used of ~VOLGB~ GB</span></div>
+    </div>
+
+    <div class="map-title">Space map — largest items, colored by tier</div>
+    <div class="map" id="map"></div>
+  </header>
+
+  <div class="selbar">
+    <div class="count">Selected <b id="selCount">0</b> items · <b id="selGB">0</b> GB</div>
+    <div class="spacer"></div>
+    <button class="btn" id="selSafe">Select all safe</button>
+    <button class="btn ghost" id="clearAll">Clear</button>
+    <button class="btn primary" id="jumpCmds">Build commands ↓</button>
+  </div>
+
+  <main id="sections"></main>
+
+  <div class="cmds" id="cmds">
+    <div class="cmds-head"><h3>Review, then delete</h3><div class="spacer"></div>
+      <div class="warn">⚠ review sizes before running any rm</div></div>
+    <div id="cmdBody"><div class="empty">Select items above to generate commands.</div></div>
+  </div>
+
+  <footer id="foot"></footer>
+</div>
+
+<script>
+/* ====== FILL IN: one object per inventoried item (see banner comment) ====== */
+const ITEMS = [
+  {id:"venvs", tier:"safe", nm:"Python virtual environments", gb:8.7,
+   pth:"~/Github/**/.venv  ·  **/venv",
+   note:'<span class="reborn">Rebuild</span> with <code>uv sync</code>.',
+   review:'find ~/Github \\( -name .venv -o -name venv \\) -type d -prune -exec du -sh {} +',
+   del:'rm -rf ~/Github/a/.venv ~/Github/b/.venv   # explicit paths, exclude active projects'},
+  {id:"example-data", tier:"data", nm:"Pipeline outputs (example)", gb:30,
+   pth:"~/Github/foo/data/work/outputs",
+   note:'<span class="reborn">Regenerated by the pipeline.</span> <span class="seen">last built 2026-01-01</span>',
+   review:'du -sh ~/Github/foo/data/work/outputs',
+   del:'rm -rf ~/Github/foo/data/work/outputs'},
+  {id:"example-verify", tier:"verify", nm:"Research raw data (example)", gb:48,
+   pth:"~/Documents/Research/foo/data/raw",
+   note:'Re-downloadable but large. <span class="keep">Confirm the analysis is finished first.</span>',
+   review:'du -sh ~/Documents/Research/foo/data/raw',
+   del:'# confirm done, then: rm -rf ~/Documents/Research/foo/data/raw'},
+  {id:"example-dl", tier:"downloads", nm:"App installers (.dmg)", gb:1.6,
+   pth:"~/Downloads/*.dmg",
+   note:'Apps already installed. <span class="reborn">Safe to trash.</span>',
+   review:'ls -lhS ~/Downloads/*.dmg',
+   del:'rm -f ~/Downloads/*.dmg'},
+];
+/* ========================================================================== */
+
+const TIERS = {
+  safe:     {n:"01", title:"Safe to delete", sub:"caches, build artifacts & environments — reinstall or rebuild in seconds", tag:"regenerable"},
+  data:     {n:"02", title:"Re-downloadable / generated data", sub:"rebuild from a pipeline or re-fetch from source", tag:"reproducible"},
+  verify:   {n:"03", title:"Verify before deleting", sub:"source data — re-acquirable but large/slow; confirm you're done", tag:"check first"},
+  downloads:{n:"04", title:"Downloads cleanup", sub:"installers and stray archives parked in ~/Downloads", tag:"clutter"},
+};
+
+const fmt = g => g>=10 ? Math.round(g) : (Math.round(g*10)/10);
+const TOTAL = ITEMS.reduce((s,i)=>s+i.gb,0);
+
+(()=>{ const map=document.getElementById('map');
+  const top=[...ITEMS].sort((a,b)=>b.gb-a.gb).slice(0,9);
+  top.forEach(i=>{ const d=document.createElement('div'); d.className='blk t-'+i.tier; d.style.flex=i.gb;
+    d.title=i.nm+' — '+fmt(i.gb)+' GB';
+    d.innerHTML=i.gb>Math.max(...top.map(x=>x.gb))*0.18?`<span>${i.nm.split('—')[0].trim().slice(0,18)}<small>${fmt(i.gb)} GB</small></span>`:'';
+    map.appendChild(d); }); })();
+
+const selected=new Set();
+const maxGB=Math.max(...ITEMS.map(i=>i.gb));
+const secWrap=document.getElementById('sections');
+Object.keys(TIERS).forEach(tk=>{
+  const items=ITEMS.filter(i=>i.tier===tk); if(!items.length) return;
+  const t=TIERS[tk]; const subtotal=items.reduce((s,i)=>s+i.gb,0);
+  const sec=document.createElement('section');
+  sec.innerHTML=`<div class="sec-head"><span class="sec-num">${t.n}</span><span class="sec-title">${t.title}</span><span class="tier-tag tag-${tk}">${t.tag}</span><span class="sec-sub">${t.sub}</span><span class="sec-total"><b>${fmt(subtotal)} GB</b> · ${items.length} items</span></div>`;
+  items.forEach(i=>{ const row=document.createElement('label'); row.className='row'; row.dataset.id=i.id;
+    row.innerHTML=`<span class="cell-chk"><input type="checkbox" data-id="${i.id}" aria-label="Select ${i.nm}"></span>
+      <span class="cell-name"><div class="nm">${i.nm}</div><div class="pth">${i.pth}</div><div class="note">${i.note}</div></span>
+      <span class="cell-bar"><span class="bar-wrap"><span class="bar t-${i.tier}" style="width:${Math.max(4,i.gb/maxGB*100)}%"></span></span></span>
+      <span class="cell-sz sz">${fmt(i.gb)}<small>GB</small></span>`;
+    sec.appendChild(row); });
+  secWrap.appendChild(sec);
+});
+
+const heroNum=document.getElementById('heroNum'),heroCap=document.getElementById('heroCap');
+const selCount=document.getElementById('selCount'),selGB=document.getElementById('selGB');
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function colorCmd(l){ if(l.trim().startsWith('#')) return '<span class="c">'+esc(l)+'</span>';
+  return esc(l).replace(/\b(rm)\b/g,'<span class="rm">$1</span>').replace(/\b(du|ls)\b/g,'<span class="du">$1</span>'); }
+function buildCmds(chosen){ const body=document.getElementById('cmdBody');
+  if(!chosen.length){ body.innerHTML='<div class="empty">Select items above to generate commands.</div>'; return; }
+  const review=chosen.map(i=>i.review).join('\n');
+  const del=chosen.map(i=>'# '+i.nm+'\n'+i.del).join('\n\n');
+  body.innerHTML=`<div class="cmd-block">
+      <h4>Step 1 · review what you're about to remove <button class="btn cp" data-cp="rev">Copy</button></h4>
+      <pre>${review.split('\n').map(colorCmd).join('\n')}</pre>
+      <h4>Step 2 · delete — read every line first <button class="btn cp" data-cp="del">Copy</button></h4>
+      <pre>${del.split('\n').map(colorCmd).join('\n')}</pre></div>`;
+  body.querySelectorAll('[data-cp]').forEach(b=>b.onclick=()=>{
+    const raw=chosen.map(i=> b.dataset.cp==='rev'?i.review:('# '+i.nm+'\n'+i.del)).join(b.dataset.cp==='rev'?'\n':'\n\n');
+    navigator.clipboard.writeText(raw).then(()=>{const o=b.textContent;b.textContent='Copied ✓';setTimeout(()=>b.textContent=o,1400);}); });
+}
+function update(){
+  const chosen=ITEMS.filter(i=>selected.has(i.id));
+  const gb=chosen.reduce((s,i)=>s+i.gb,0);
+  selCount.textContent=chosen.length; selGB.textContent=fmt(gb);
+  if(chosen.length){ heroNum.classList.remove('idle'); heroNum.innerHTML=fmt(gb)+'<span class="hero-unit">GB</span>';
+    heroCap.innerHTML=`selected for cleanup — <b>${chosen.length} of ${ITEMS.length} items</b>, of ${fmt(TOTAL)} GB available`; }
+  else { heroNum.classList.add('idle'); heroNum.innerHTML=fmt(TOTAL)+'<span class="hero-unit">GB</span>';
+    heroCap.innerHTML=`potentially reclaimable across <b>${ITEMS.length} items</b> — nothing selected yet`; }
+  document.querySelectorAll('.row').forEach(r=>r.classList.toggle('on',selected.has(r.dataset.id)));
+  buildCmds(chosen);
+}
+document.addEventListener('change',e=>{ if(e.target.matches('input[type=checkbox]')){
+  const id=e.target.dataset.id; e.target.checked?selected.add(id):selected.delete(id); update(); }});
+document.getElementById('selSafe').onclick=()=>{ ITEMS.filter(i=>i.tier==='safe').forEach(i=>selected.add(i.id));
+  document.querySelectorAll('input[type=checkbox]').forEach(c=>{if(ITEMS.find(i=>i.id===c.dataset.id)?.tier==='safe')c.checked=true;}); update(); };
+document.getElementById('clearAll').onclick=()=>{ selected.clear();
+  document.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false); update(); };
+document.getElementById('jumpCmds').onclick=()=>document.getElementById('cmds').scrollIntoView({behavior:'smooth'});
+document.getElementById('foot').innerHTML='Sizes measured with du · paths are literal — verify each with the Step 1 command before deleting · this page runs nothing on its own.';
+update();
+</script>

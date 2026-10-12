@@ -1,0 +1,11 @@
+{
+  "name": "stacked-pr-guard",
+  "version": "0.1.0",
+  "description": "Blocks deleting a branch that open pull requests are based on, so GitHub doesn't close the PRs stacked on it.",
+  "author": {
+    "name": "Chris Mihiar",
+    "url": "https://github.com/mihiarc"
+  },
+  "repository": "https://github.com/mihiarc/claude-kit",
+  "license": "MIT"
+}

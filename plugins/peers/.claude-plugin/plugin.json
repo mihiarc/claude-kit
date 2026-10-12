@@ -1,0 +1,11 @@
+{
+  "name": "peers",
+  "version": "0.1.0",
+  "description": "A local web page of the Claude Code sessions on this machine: which are working, waiting on you or idle, what each has claimed, and who messaged whom.",
+  "author": {
+    "name": "Chris Mihiar",
+    "url": "https://github.com/mihiarc"
+  },
+  "repository": "https://github.com/mihiarc/claude-kit",
+  "license": "MIT"
+}

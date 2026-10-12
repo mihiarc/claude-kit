@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude sessions</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='1' y='1' width='14' height='14' rx='5' fill='%23dcebcd' stroke='%23a86b3c'/><circle cx='8' cy='8' r='3' fill='%231e2b1c'/></svg>">
+<style>
+  /* A workspace map: checkouts are patches of land, sessions are the symbols on
+     them, messages run between them like streams. Fonts ship with macOS. */
+  :root {
+    --paper: #fbfcf8;
+    --ink: #1e2b1c;
+    --ink-soft: #5d6a56;
+    --woodland: #dcebcd;
+    --woodland-edge: #b9d3a3;
+    --woodland-deep: #4e7a3a;
+    --contour: #a86b3c;
+    --contour-faint: rgba(168, 107, 60, 0.28);
+    --water: #2c6cb0;
+    --hazard: #c5362b;
+    --hatch: rgba(197, 54, 43, 0.2);
+    --label: "Avenir Next Condensed", "Avenir Next", "Helvetica Neue", sans-serif;
+    --text: Charter, "Iowan Old Style", Georgia, serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #131a13;
+      --ink: #e4ecdc;
+      --ink-soft: #9aa892;
+      --woodland: #1d2d1b;
+      --woodland-edge: #34502f;
+      --woodland-deep: #8cc274;
+      --contour: #c08f62;
+      --contour-faint: rgba(192, 143, 98, 0.3);
+      --water: #88b9ee;
+      --hazard: #f07a69;
+      --hatch: rgba(240, 122, 105, 0.18);
+      color-scheme: dark;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.5 var(--text); }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 22px 24px 64px; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--water); outline-offset: 3px; border-radius: 4px; }
+
+  /* Header */
+  .top { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+         padding-bottom: 10px; border-bottom: 1.5px solid var(--contour); }
+  .title { font: 600 17px/1.2 var(--label); letter-spacing: 0.01em; margin: 0; }
+  .updated { margin-left: auto; font: 500 14px/1.2 var(--label); color: var(--ink-soft);
+             font-variant-numeric: tabular-nums; }
+  .stale .updated { color: var(--hazard); }
+
+  /* The report: what needs attention, in sentences */
+  .report { margin: 34px 0 38px; max-width: 32em; }
+  .report p { margin: 0 0 8px; font: 400 28px/1.25 var(--text); display: flex; gap: 16px;
+              align-items: baseline; text-wrap: pretty; }
+  .report p.quiet { color: var(--ink-soft); font-size: 24px; margin-top: 14px; }
+  .report .mark { flex: none; transform: translateY(-4px); }
+  .report p.quiet .mark { visibility: hidden; }
+
+  /* Map symbols: shape is the kind of session, fill is its state */
+  .mark { display: inline-block; position: relative; width: 14px; height: 14px; flex: none;
+          border: 2px solid var(--ink); border-radius: 50%; }
+  .mark.bg { border-radius: 2px; }
+  .mark.busy { background: var(--ink); }
+  .mark.idle { border-color: var(--woodland-deep); }
+  .mark.wait { border-color: var(--hazard); background: var(--hazard); }
+  .report .mark.wait::after { content: ""; position: absolute; inset: -7px; border: 2px solid var(--hazard);
+                      border-radius: inherit; opacity: 0; animation: beacon 2.6s ease-out infinite; }
+  .mark.off { border-color: var(--ink-soft); border-style: dotted; }
+  .mark.shared { border-radius: 2px; border-color: var(--hazard);
+                 background: repeating-linear-gradient(135deg, var(--hazard) 0 1.5px, transparent 1.5px 4px); }
+  @keyframes beacon { 0% { transform: scale(0.55); opacity: 0.9; } 100% { transform: scale(1.5); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .report .mark.wait::after { animation: none; opacity: 0.45; transform: none; } }
+
+  /* Places: one patch per checkout or folder */
+  .places { display: flex; flex-direction: column; gap: 16px; }
+  .place { display: grid; grid-template-columns: minmax(220px, 31%) 1fr;
+           background-color: var(--woodland); border: 1.5px solid var(--woodland-edge);
+           border-radius: 18px 6px 18px 6px; }
+  .place.folder { background-color: transparent; border: 1.5px dashed var(--contour-faint); }
+  .place.shared { border-color: var(--hazard);
+                  background-image: repeating-linear-gradient(135deg, var(--hatch) 0 2px, transparent 2px 11px); }
+  .place-label { padding: 16px 18px 18px; min-width: 0; }
+  .place-name { font: 600 21px/1.15 var(--label); overflow-wrap: anywhere; margin: 0; }
+  .place-about { margin-top: 5px; font: 500 15px/1.3 var(--label); color: var(--ink-soft); }
+  .place-about .branch { color: var(--ink); }
+  .place-warning { margin-top: 12px; font: 400 15px/1.4 var(--text); color: var(--hazard); }
+  .place-warning code { font: 600 14px var(--label); }
+  .occupants { background: var(--paper); margin: 8px; border-radius: 12px 4px 12px 4px; min-width: 0; }
+  .place.folder .occupants { background: transparent; }
+
+  .occupant { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 0 14px;
+              padding: 14px 16px; border-top: 1px solid var(--contour-faint); }
+  .occupant:first-child { border-top: none; }
+  .occupant > .mark { margin-top: 5px; }
+  .who { font: 600 19px/1.25 var(--label); overflow-wrap: anywhere; }
+  .who .kind { font-weight: 500; font-size: 14px; color: var(--ink-soft); margin-left: 8px; }
+  .status { text-align: right; }
+  .state { font: 600 16px/1.25 var(--label); }
+  .state.idle { color: var(--woodland-deep); }
+  .state.wait { color: var(--hazard); }
+  .state.off { color: var(--ink-soft); }
+  .reason { display: block; font-weight: 500; font-size: 14px; }
+  .facts { margin-top: 3px; font: 500 14px/1.3 var(--label); color: var(--ink-soft);
+           font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* Claims: what a session says it is working on */
+  .claim { display: block; width: 100%; margin-top: 4px; text-align: left; cursor: text;
+           font: 400 16px/1.4 var(--text); }
+  .claim .set { font: 500 13px/1 var(--label); color: var(--ink-soft); margin-left: 8px; white-space: nowrap; }
+  .claim.empty { font-style: italic; color: var(--ink-soft); }
+  .claim:hover .set, .claim.empty:hover { color: var(--water); }
+  .claim-off { margin-top: 4px; font: italic 400 15px/1.4 var(--text); color: var(--ink-soft); }
+  .claim-input { width: 100%; margin-top: 4px; font: 400 16px/1.4 var(--text); color: var(--ink);
+                 padding: 5px 8px; background: var(--paper); border: 1.5px solid var(--water); border-radius: 6px; }
+
+  /* Connection diagram */
+  h2.first { margin-top: 0; }
+  .h2-note { margin-left: auto; font: 500 14px/1.2 var(--label); color: var(--ink-soft); }
+  /* The diagram is a figure: it may run wider than the text column, up to 1360px. */
+  .diagram { overflow-x: auto; padding-bottom: 4px;
+             margin-inline: calc((100% - min(1360px, 100vw - 48px)) / 2); }
+  .diagram svg { display: block; max-width: 100%; height: auto; margin-inline: auto; }
+  .d-place { fill: var(--woodland); stroke: var(--woodland-edge); stroke-width: 1.5; }
+  .d-place.folder { fill: none; stroke: var(--contour-faint); stroke-dasharray: 6 5; }
+  .d-place.shared { stroke: var(--hazard); }
+  .d-place.ghost { fill: none; stroke: var(--ink-soft); stroke-dasharray: 3 5; }
+  .d-hatch { fill: var(--hatch); }
+  .d-place-name { font: 600 14px var(--label); fill: var(--ink); }
+  .d-place-about { font-weight: 500; fill: var(--ink-soft); }
+  .d-node { fill: var(--paper); stroke: var(--ink); stroke-width: 1.5; }
+  .d-node.wait { stroke: var(--hazard); fill: color-mix(in srgb, var(--hazard) 9%, var(--paper)); }
+  .d-node.ghost { fill: none; stroke: var(--ink-soft); stroke-dasharray: 5 4; }
+  .d-name { font: 600 15px var(--label); fill: var(--ink); }
+  .ghost-node .d-name { fill: var(--ink-soft); }
+  .d-status { font: 600 13px var(--label); fill: var(--ink); }
+  .d-status.idle { fill: var(--woodland-deep); }
+  .d-status.wait { fill: var(--hazard); }
+  .d-status.off { fill: var(--ink-soft); font-weight: 500; }
+  .d-mark { stroke-width: 2; }
+  .d-mark.busy { fill: var(--ink); stroke: var(--ink); }
+  .d-mark.idle { fill: var(--paper); stroke: var(--woodland-deep); }
+  .d-mark.wait { fill: var(--hazard); stroke: var(--hazard); }
+  .d-mark.off { fill: none; stroke: var(--ink-soft); stroke-dasharray: 2 2; }
+  .d-edge { fill: none; stroke: var(--water); stroke-width: 1.75; }
+  .d-edge.idle-only { stroke-dasharray: 6 5; }
+  .d-arrow { fill: var(--water); }
+  .d-chip { fill: var(--paper); }
+  .d-edge-label { font: 600 12.5px var(--label); fill: var(--water); }
+  .key svg { flex: none; overflow: visible; }
+
+  /* Sections below the map */
+  h2 { font: 600 20px/1.2 var(--label); margin: 52px 0 10px; display: flex; align-items: baseline;
+       gap: 16px; flex-wrap: wrap; }
+  .toggle { margin-left: auto; font: 500 14px/1.2 var(--label); color: var(--ink-soft);
+            display: flex; gap: 7px; align-items: center; cursor: pointer; }
+  .toggle input { accent-color: var(--water); }
+  .empty-note { font: italic 400 16px/1.45 var(--text); color: var(--ink-soft); padding: 6px 0; max-width: 40em; }
+
+  .msg { display: grid; grid-template-columns: 82px minmax(150px, 290px) minmax(0, 1fr); gap: 16px;
+         padding: 10px 0; border-top: 1px solid var(--contour-faint); align-items: baseline; }
+  .msg .ago { font: 500 14px/1.3 var(--label); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .msg .route { font: 600 16px/1.3 var(--label); overflow-wrap: anywhere; }
+  .msg .route .to { font-weight: 500; color: var(--ink-soft); }
+  .msg .said { font: italic 400 17px/1.4 var(--text); color: var(--water); overflow-wrap: anywhere; }
+  .msg .aside { font: 500 13px/1.3 var(--label); font-style: normal; color: var(--ink-soft); margin-left: 6px; }
+
+  .ended { display: grid; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr) auto; gap: 16px;
+           padding: 10px 0; border-top: 1px solid var(--contour-faint); align-items: baseline; }
+  .ended .who { font-size: 17px; }
+  .ended .claim { margin-top: 0; }
+  .clear { font: 600 14px/1.2 var(--label); color: var(--hazard); padding: 4px 2px; justify-self: start; }
+
+  .key { margin-top: 56px; padding-top: 14px; border-top: 1.5px solid var(--contour);
+         display: flex; flex-wrap: wrap; gap: 10px 26px; font: 500 14px/1.3 var(--label); color: var(--ink-soft); }
+  .key b { color: var(--ink); font-weight: 600; }
+  .key span { display: inline-flex; align-items: center; gap: 8px; }
+
+  @media (max-width: 720px) {
+    .wrap { padding: 16px 16px 48px; }
+    .report p { font-size: 24px; gap: 12px; }
+    .report p.quiet { font-size: 20px; }
+    .place { grid-template-columns: 1fr; }
+    .place-label { padding-bottom: 6px; }
+    .occupant { grid-template-columns: 22px minmax(0, 1fr); }
+    .status { grid-column: 2; text-align: left; margin-top: 6px; }
+    .msg, .ended { grid-template-columns: 1fr; gap: 2px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <header class="top">
+    <h1 class="title">Claude sessions on this Mac</h1>
+    <span class="updated" id="updated" aria-live="polite"></span>
+  </header>
+
+  <section class="report" id="report" aria-live="polite"><p class="quiet">Reading sessions…</p></section>
+
+  <h2 class="first">How sessions connect <span class="h2-note">Messages from the last 24 hours</span></h2>
+  <div class="diagram" id="diagram"></div>
+
+  <h2>Where sessions are working</h2>
+  <div class="places" id="places"></div>
+
+  <div id="ended-wrap" hidden>
+    <h2>Claims from sessions that have ended</h2>
+    <div id="ended"></div>
+  </div>
+
+  <h2>Messages between sessions
+    <label class="toggle"><input type="checkbox" id="show-all"> Include messages to subagents</label>
+  </h2>
+  <div id="messages"></div>
+
+  <footer class="key" aria-label="Key">
+    <b>Key</b>
+    <span><i class="mark busy"></i>working</span>
+    <span><i class="mark idle"></i>idle</span>
+    <span><i class="mark wait"></i>needs you</span>
+    <span><i class="mark bg busy"></i>background session</span>
+    <span><i class="mark shared"></i>checkout shared by two sessions</span>
+    <span><svg width="30" height="10" aria-hidden="true"><line class="d-edge" x1="0" y1="5" x2="23" y2="5"/><path class="d-arrow" d="M22,1 L30,5 L22,9 z"/></svg>messages, arrow at the receiving end</span>
+    <span><svg width="30" height="10" aria-hidden="true"><line class="d-edge idle-only" x1="0" y1="5" x2="23" y2="5"/><path class="d-arrow" d="M22,1 L30,5 L22,9 z"/></svg>asked to hear when it goes idle</span>
+    <span><svg width="18" height="14" aria-hidden="true"><rect class="d-node ghost" x="1" y="1" width="16" height="12" rx="3"/></svg>session not running now</span>
+  </footer>
+</div>
+
+<script src="/vendor/elk.bundled.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g,
+  c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+let editing = false, last = null, lastOk = 0;
+
+function ago(ms) {
+  const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
+  if (s < 60) return s + "s";
+  if (s < 3600) return Math.round(s / 60) + "m";
+  if (s < 86400) return (s / 3600).toFixed(s < 36000 ? 1 : 0) + "h";
+  return Math.round(s / 86400) + "d";
+}
+const joinNames = names => names.length < 3 ? names.join(" and ")
+  : names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
+// Let long paths wrap after a slash rather than mid-word.
+const pathHtml = p => esc(p).replaceAll("/", "/<wbr>");
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+// Interactive sessions report busy | waiting | idle; background ones working | blocked | done | failed | stopped.
+const TONE = {busy: "busy", working: "busy", waiting: "wait", blocked: "wait", failed: "wait",
+              idle: "idle", done: "off", stopped: "off"};
+const tone = s => TONE[s.activity] || "off";
+const word = s => s.activity === "failed" ? "failed"
+  : ({busy: "working", wait: "needs you", idle: "idle"})[tone(s)] || s.activity;
+const mark = s => `<i class="mark ${tone(s)}${s.kind === "background" ? " bg" : ""}"></i>`;
+
+function report(state) {
+  const lines = [];
+  for (const s of state.sessions.filter(s => tone(s) === "wait")) {
+    const what = s.activity === "failed" ? "failed" : "needs you";
+    lines.push(`<p>${mark(s)}<span>${esc(s.label)} ${what}${s.waitingFor ? ": " + esc(s.waitingFor) : ""}.</span></p>`);
+  }
+  for (const a of state.alerts) {
+    const text = a.kind === "shared-checkout"
+      ? `${esc(joinNames(a.sessions))} are working in the same checkout, ${pathHtml(a.checkout)}.`
+      : `${a.count} sessions are named ${esc(a.name)}, so messages to that name reach only one of them.`;
+    lines.push(`<p><i class="mark shared"></i><span>${text}</span></p>`);
+  }
+  const n = state.sessions.length;
+  const busy = state.sessions.filter(s => tone(s) === "busy").length;
+  const idle = state.sessions.filter(s => tone(s) === "idle").length;
+  if (!n) {
+    lines.push(`<p><i class="mark off"></i><span>No Claude sessions are running.</span></p>`);
+    return lines.join("");
+  }
+  if (!lines.length) lines.push(`<p><i class="mark idle"></i><span>Nothing needs you.</span></p>`);
+  const parts = [];
+  if (busy) parts.push(plural(busy, "session is", "sessions are") + " working");
+  if (idle) parts.push(parts.length ? `${idle} ${idle === 1 ? "is" : "are"} idle`
+                                    : plural(idle, "session is", "sessions are") + " idle");
+  const summary = parts.length ? parts.join(" and ") + "." : plural(n, "session is", "sessions are") + " running.";
+  lines.push(`<p class="quiet"><i class="mark off"></i><span>${summary}</span></p>`);
+  return lines.join("");
+}
+
+function groupPlaces(state) {
+  const shared = new Set(state.alerts.filter(a => a.kind === "shared-checkout").map(a => a.checkout));
+  const byKey = new Map();
+  for (const s of state.sessions) {
+    const key = s.checkout || s.cwd;
+    if (!byKey.has(key)) byKey.set(key, {key, repo: !!s.checkout, branch: s.branch,
+                                         worktree: s.worktree, missing: s.cwdMissing, sessions: []});
+    byKey.get(key).sessions.push(s);
+  }
+  const places = [...byKey.values()];
+  for (const p of places) {
+    p.shared = shared.has(p.key);
+    p.wait = p.sessions.some(s => tone(s) === "wait");
+  }
+  return places.sort((a, b) => (b.wait - a.wait) || (b.shared - a.shared) || a.key.localeCompare(b.key));
+}
+
+function claimButton(name, claim) {
+  if (!name) return `<div class="claim-off">Start this session with --name to record a claim.</div>`;
+  if (!claim) return `<button class="claim empty" data-name="${esc(name)}" data-text="">Add what this session is working on</button>`;
+  const by = {session: "by the session", dashboard: "here", cli: "from the command line"}[claim.by] || "";
+  return `<button class="claim" data-name="${esc(name)}" data-text="${esc(claim.text)}">${esc(claim.text)}`
+       + `<span class="set">set ${by} ${ago(Date.parse(claim.at))} ago</span></button>`;
+}
+
+function occupant(s) {
+  const kind = s.kind === "background" ? `<span class="kind">background session ${esc(s.id || "")}</span>` : "";
+  const facts = [s.pid ? "pid " + esc(s.pid) : "", s.startedAt ? "up " + ago(s.startedAt) : ""].filter(Boolean).join(", ");
+  return `<div class="occupant">
+    ${mark(s)}
+    <div><div class="who">${esc(s.label)}${kind}</div>${claimButton(s.name, s.claim)}</div>
+    <div class="status">
+      <div class="state ${tone(s)}">${esc(word(s))}${s.waitingFor ? `<span class="reason">${esc(s.waitingFor)}</span>` : ""}</div>
+      ${facts ? `<div class="facts">${facts}</div>` : ""}
+    </div>
+  </div>`;
+}
+
+function place(p) {
+  const about = p.repo
+    ? `on <span class="branch">${esc(p.branch)}</span>${p.worktree ? ", a worktree" : ""}`
+    : p.missing ? "This folder no longer exists." : "A folder, not a git checkout";
+  const warning = p.shared
+    ? `<div class="place-warning">${plural(p.sessions.length, "session", "sessions")} share this checkout, so a commit in one can sweep up the other's edits. Give one of them a worktree with <code>claude --worktree &lt;task&gt;</code>.</div>`
+    : "";
+  return `<article class="place${p.repo ? "" : " folder"}${p.shared ? " shared" : ""}">
+    <div class="place-label"><h3 class="place-name">${pathHtml(p.key)}</h3><div class="place-about">${about}</div>${warning}</div>
+    <div class="occupants">${p.sessions.map(occupant).join("")}</div>
+  </article>`;
+}
+
+function messages(state) {
+  const showAll = $("show-all").checked;
+  const list = state.messages.filter(m => showAll || m.crossSession).slice(0, 40);
+  if (!list.length) return `<div class="empty-note">No messages yet. When one session uses SendMessage to reach another, the message shows up here.</div>`;
+  return list.map(m => {
+    const said = m.firstLine ? esc(m.firstLine) : "Asked to hear when it goes idle.";
+    const asides = [m.agentId ? "sent by a subagent" : "",
+                    m.notifyWhenIdle && m.firstLine ? "and asked to hear when it goes idle" : ""].filter(Boolean).join(", ");
+    return `<div class="msg">
+      <div class="ago" title="${esc(new Date(m.at).toLocaleString())}">${ago(Date.parse(m.at))} ago</div>
+      <div class="route">${esc(m.from)} <span class="to">to</span> ${esc(m.to)}</div>
+      <div class="said">${said}${asides ? `<span class="aside">${asides}</span>` : ""}</div>
+    </div>`;
+  }).join("");
+}
+
+// --- Connection diagram. Places are groups, sessions are boxes, and each pair of
+// sessions that messaged in the last day gets one connector. ELK does the layout.
+const elk = window.ELK ? new ELK() : null;
+const LABEL_FONT = '"Avenir Next Condensed", "Avenir Next", "Helvetica Neue", sans-serif';
+const FONT = {
+  name: `600 15px ${LABEL_FONT}`,
+  status: `600 13px ${LABEL_FONT}`,
+  place: `600 14px ${LABEL_FONT}`,
+  edge: `600 12.5px ${LABEL_FONT}`,
+};
+const ROOT_OPTIONS = {
+  "elk.algorithm": "layered", "elk.direction": "RIGHT", "elk.edgeRouting": "ORTHOGONAL",
+  "elk.hierarchyHandling": "INCLUDE_CHILDREN", "elk.json.shapeCoords": "ROOT", "elk.json.edgeCoords": "ROOT",
+  "elk.edgeLabels.placement": "CENTER", "elk.padding": "[top=4,left=4,bottom=4,right=4]",
+  "elk.spacing.nodeNode": "24", "elk.layered.spacing.nodeNodeBetweenLayers": "44", "elk.aspectRatio": "2.4",
+  "elk.spacing.edgeNode": "18", "elk.spacing.edgeEdge": "12", "elk.spacing.componentComponent": "26",
+};
+// Groups size to their sessions; their titles are trimmed to fit afterwards. (ELK 0.12 applies
+// nodeSize.minimum transposed on nested groups when the direction is DOWN.)
+const PLACE_OPTIONS = {"elk.padding": "[top=44,left=16,bottom=16,right=16]"};
+const DAY_MS = 86400e3;
+const measure = document.createElement("canvas").getContext("2d");
+const textWidth = (text, font) => { measure.font = font; return measure.measureText(text).width; };
+
+// Trim to fit a width: names lose their end, paths lose their start (the tail names the place).
+function fit(text, font, max, fromStart = false) {
+  if (textWidth(text, font) <= max) return text;
+  const cut = n => fromStart ? "…" + text.slice(text.length - n) : text.slice(0, n).trimEnd() + "…";
+  let lo = 0, hi = text.length;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (textWidth(cut(mid), font) <= max) lo = mid; else hi = mid - 1;
+  }
+  return cut(lo);
+}
+
+function buildGraph(state) {
+  const live = new Map(state.sessions.map(s => [s.label, s]));
+  const pairs = new Map();
+  for (const m of state.messages) {
+    if (!m.crossSession || m.from === m.to || Date.now() - Date.parse(m.at) > DAY_MS) continue;
+    const key = [m.from, m.to].sort().join("\n");
+    if (!pairs.has(key)) pairs.set(key, {a: m.from, b: m.to, ab: 0, ba: 0, idleOnly: 0, last: 0});
+    const p = pairs.get(key);
+    if (m.from === p.a) p.ab++; else p.ba++;
+    if (!m.firstLine && m.notifyWhenIdle) p.idleOnly++;
+    p.last = Math.max(p.last, Date.parse(m.at));
+  }
+
+  const ids = new Map(), info = new Map();
+  const box = (label, s) => {
+    const id = "n" + ids.size;
+    ids.set(label, id);
+    const status = s ? word(s) + (s.waitingFor ? ": " + s.waitingFor : "") : "not running";
+    // Claims stay out of the boxes to keep the diagram narrow; hovering a box shows one.
+    const claim = s && s.claim ? s.claim.text : "";
+    const inner = Math.min(230, Math.max(textWidth(label, FONT.name), textWidth(status, FONT.status)));
+    const width = Math.max(140, Math.ceil(inner) + 46), room = width - 46;
+    info.set(id, {ghost: !s, tone: s ? tone(s) : "off", bg: !!s && s.kind === "background", title: label + (claim ? "\n" + claim : ""),
+                  name: fit(label, FONT.name, room), status: fit(status, FONT.status, room)});
+    return {id, width, height: 56};
+  };
+  const group = (id, label, about, cls, members) => {
+    info.set(id, {label, about, cls});
+    return {id, layoutOptions: PLACE_OPTIONS, children: members};
+  };
+
+  const children = groupPlaces(state).map((p, i) => group("c" + i, p.key,
+    p.repo ? `on ${p.branch}${p.worktree ? ", a worktree" : ""}` : p.missing ? "folder no longer exists" : "not a git checkout",
+    p.shared ? "shared" : p.repo ? "" : "folder", p.sessions.map(s => box(s.label, s))));
+  const ghosts = [...new Set([...pairs.values()].flatMap(p => [p.a, p.b]))].filter(n => !live.has(n));
+  if (ghosts.length) children.push(group("cg", "Not running now", "", "ghost", ghosts.map(n => box(n, null))));
+
+  const edges = [...pairs.values()].map((p, i) => {
+    const [src, dst] = p.ab >= p.ba ? [p.a, p.b] : [p.b, p.a];
+    const n = p.ab + p.ba, idleOnly = p.idleOnly === n;
+    const text = idleOnly ? "asked to hear when idle" : `${n} message${n === 1 ? "" : "s"}, ${ago(p.last)} ago`;
+    info.set("e" + i, {both: p.ab > 0 && p.ba > 0, idleOnly});
+    return {id: "e" + i, sources: [ids.get(src)], targets: [ids.get(dst)],
+            labels: [{text, width: Math.ceil(textWidth(text, FONT.edge)), height: 16}]};
+  });
+  return {graph: {id: "root", layoutOptions: ROOT_OPTIONS, children, edges}, info};
+}
+
+// Orthogonal path with softened corners.
+function roundedPath(points, r = 6) {
+  let d = `M${points[0].x},${points[0].y}`;
+  for (let i = 1; i < points.length - 1; i++) {
+    const [a, p, b] = [points[i - 1], points[i], points[i + 1]];
+    const da = Math.hypot(p.x - a.x, p.y - a.y), db = Math.hypot(b.x - p.x, b.y - p.y);
+    if (!da || !db) continue;
+    const rr = Math.min(r, da / 2, db / 2);
+    d += ` L${p.x + (a.x - p.x) / da * rr},${p.y + (a.y - p.y) / da * rr}`
+       + ` Q${p.x},${p.y} ${p.x + (b.x - p.x) / db * rr},${p.y + (b.y - p.y) / db * rr}`;
+  }
+  const end = points[points.length - 1];
+  return d + ` L${end.x},${end.y}`;
+}
+
+// A group's title: its path trimmed from the front, then "on <branch>" if there is room left.
+function placeTitle(c, d) {
+  const room = c.width - 32;
+  const name = fit(d.label, FONT.place, room, true);
+  const left = room - textWidth(name, FONT.place) - 8;
+  const about = d.about && textWidth(d.about, FONT.place) <= left ? d.about : "";
+  return `<text class="d-place-name" x="${c.x + 16}" y="${c.y + 27}"><title>${esc(d.label)}</title>${esc(name)}`
+       + (about ? `<tspan class="d-place-about" dx="8">${esc(about)}</tspan>` : "") + `</text>`;
+}
+
+function diagramSvg(g, info) {
+  const groups = [], nodes = [], lines = [], chips = [];
+  for (const c of g.children) {
+    const d = info.get(c.id);
+    const rect = `x="${c.x}" y="${c.y}" width="${c.width}" height="${c.height}" rx="12"`;
+    groups.push(`<rect class="d-place ${d.cls}" ${rect}/>` + (d.cls === "shared" ? `<rect class="d-hatch-fill" fill="url(#d-hatch)" ${rect}/>` : "")
+      + placeTitle(c, d));
+    for (const n of c.children) {
+      const s = info.get(n.id), x = n.x, y = n.y;
+      const mark = s.ghost ? "" : s.bg
+        ? `<rect class="d-mark ${s.tone}" x="${x + 12}" y="${y + 14}" width="12" height="12" rx="2"/>`
+        : `<circle class="d-mark ${s.tone}" cx="${x + 18}" cy="${y + 20}" r="6"/>`;
+      nodes.push(`<g class="${s.ghost ? "ghost-node" : ""}"><title>${esc(s.title)}</title>
+        <rect class="d-node${s.ghost ? " ghost" : s.tone === "wait" ? " wait" : ""}" x="${x}" y="${y}" width="${n.width}" height="${n.height}" rx="7"/>${mark}
+        <text class="d-name" x="${x + 32}" y="${y + 25}">${esc(s.name)}</text>
+        <text class="d-status ${s.tone}" x="${x + 32}" y="${y + 44}">${esc(s.status)}</text></g>`);
+    }
+  }
+  for (const e of g.edges) {
+    const d = info.get(e.id);
+    for (const sec of e.sections || []) {
+      const points = [sec.startPoint, ...(sec.bendPoints || []), sec.endPoint];
+      lines.push(`<path class="d-edge${d.idleOnly ? " idle-only" : ""}" d="${roundedPath(points)}" marker-end="url(#d-arrow)"${d.both ? ' marker-start="url(#d-arrow)"' : ""}/>`);
+    }
+    for (const l of e.labels || []) {
+      chips.push(`<rect class="d-chip" x="${l.x - 5}" y="${l.y - 1}" width="${l.width + 10}" height="${l.height + 3}" rx="4"/>`
+               + `<text class="d-edge-label" x="${l.x}" y="${l.y + 13}">${esc(l.text)}</text>`);
+    }
+  }
+  const W = Math.ceil(g.width), H = Math.ceil(g.height);
+  const summary = `${plural(nodes.length, "session", "sessions")} in ${plural(g.children.length, "group", "groups")}, ${plural(g.edges.length, "connection", "connections")}`;
+  // Shrink to fit the column, but no further than 75%; past that the diagram scrolls sideways.
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="min-width:${Math.round(W * 0.75)}px" role="img" aria-label="Diagram of how sessions connect: ${summary}">
+    <defs>
+      <pattern id="d-hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect class="d-hatch" width="2.5" height="10"/></pattern>
+      <marker id="d-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow" d="M0,0 L10,5 L0,10 z"/></marker>
+    </defs>
+    ${groups.join("")}${lines.join("")}${nodes.join("")}${chips.join("")}</svg>`;
+}
+
+let diagramKey = "", diagramRun = 0;
+async function drawDiagram(state) {
+  const el = $("diagram");
+  if (!elk) {
+    el.innerHTML = `<div class="empty-note">The diagram needs web/vendor/elk.bundled.js from the peers plugin, and the page couldn't load it.</div>`;
+    return;
+  }
+  if (!state.sessions.length && !state.messages.some(m => m.crossSession)) {
+    diagramKey = "";
+    el.innerHTML = `<div class="empty-note">No sessions are running, so there is nothing to connect.</div>`;
+    return;
+  }
+  const {graph, info} = buildGraph(state);
+  const key = JSON.stringify([graph, [...info]]);
+  if (key === diagramKey) return;
+  diagramKey = key;
+  const run = ++diagramRun;
+  try {
+    const laid = await elk.layout(graph);
+    if (run === diagramRun) el.innerHTML = diagramSvg(laid, info);
+  } catch (err) {
+    el.innerHTML = `<div class="empty-note">The diagram layout failed: ${esc(err.message || err)}</div>`;
+  }
+}
+
+function render(state) {
+  $("report").innerHTML = report(state);
+  drawDiagram(state);
+  if (!editing) {
+    $("places").innerHTML = groupPlaces(state).map(place).join("");
+    $("ended-wrap").hidden = !state.otherClaims.length;
+    $("ended").innerHTML = state.otherClaims.map(c => `<div class="ended">
+      <div class="who">${esc(c.name)}</div>${claimButton(c.name, c)}
+      <button class="clear" data-clear="${esc(c.name)}">Clear</button></div>`).join("");
+  }
+  $("messages").innerHTML = messages(state);
+}
+
+async function refresh() {
+  try {
+    const r = await fetch("/api/state", {cache: "no-store"});
+    if (!r.ok) throw new Error(r.status);
+    last = await r.json();
+    lastOk = Date.now();
+    render(last);
+  } catch (e) { /* keep the last good view; the header says how stale it is */ }
+  const stale = Date.now() - lastOk > 6000;
+  $("app").classList.toggle("stale", stale);
+  $("updated").textContent = !lastOk ? ""
+    : stale ? `Lost contact with the server ${ago(lastOk)} ago. Run peers to restart it.`
+            : `Updated ${ago(lastOk)} ago`;
+}
+
+async function saveClaim(name, text) {
+  await fetch("/api/claim", {method: "POST", headers: {"Content-Type": "application/json"},
+                             body: JSON.stringify({name, text})});
+}
+
+document.addEventListener("click", async e => {
+  const clear = e.target.closest("[data-clear]");
+  if (clear) { await saveClaim(clear.dataset.clear, ""); return refresh(); }
+  const button = e.target.closest("button.claim");
+  if (!button) return;
+  editing = true;
+  const name = button.dataset.name;
+  const input = document.createElement("input");
+  input.className = "claim-input";
+  input.value = button.dataset.text;
+  input.placeholder = `What ${name} is working on. Leave empty to clear.`;
+  input.setAttribute("aria-label", `Claim for ${name}`);
+  button.replaceWith(input);
+  input.focus();
+  const finish = async save => {
+    if (!editing) return;
+    editing = false;
+    if (save) await saveClaim(name, input.value);
+    refresh();
+  };
+  input.addEventListener("keydown", ev => {
+    if (ev.key === "Enter") finish(true);
+    if (ev.key === "Escape") finish(false);
+  });
+  input.addEventListener("blur", () => finish(false));
+});
+$("show-all").addEventListener("change", () => last && render(last));
+
+refresh();
+setInterval(refresh, 2000);
+</script>
+</body>
+</html>

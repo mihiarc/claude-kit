@@ -1,0 +1,11 @@
+{
+  "name": "codebase-audit",
+  "version": "0.1.0",
+  "description": "A full critical review of a codebase or component, with severity-rated findings checked against current best practice and filed as GitHub issues once you confirm.",
+  "author": {
+    "name": "Chris Mihiar",
+    "url": "https://github.com/mihiarc"
+  },
+  "repository": "https://github.com/mihiarc/claude-kit",
+  "license": "MIT"
+}
