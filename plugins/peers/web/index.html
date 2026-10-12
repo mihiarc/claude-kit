@@ -123,22 +123,21 @@
   /* Connection diagram */
   h2.first { margin-top: 0; }
   .h2-note { margin-left: auto; font: 500 14px/1.2 var(--label); color: var(--ink-soft); }
-  /* The diagram is a figure: it may run wider than the text column, up to 1360px. */
+  /* The diagram is a figure: it may run wider than the text column, out to the window's edges. */
   .diagram { overflow-x: auto; padding-bottom: 4px;
-             margin-inline: calc((100% - min(1360px, 100vw - 48px)) / 2); }
+             margin-inline: calc((100% - (100vw - 48px)) / 2); }
   .diagram svg { display: block; max-width: 100%; height: auto; margin-inline: auto; }
   .d-place { fill: var(--woodland); stroke: var(--woodland-edge); stroke-width: 1.5; }
   .d-place.folder { fill: none; stroke: var(--contour-faint); stroke-dasharray: 6 5; }
   .d-place.shared { stroke: var(--hazard); }
-  .d-place.ghost { fill: none; stroke: var(--ink-soft); stroke-dasharray: 3 5; }
   .d-hatch { fill: var(--hatch); }
   .d-place-name { font: 600 14px var(--label); fill: var(--ink); }
   .d-place-about { font-weight: 500; fill: var(--ink-soft); }
+  .d-title-chip { fill: var(--woodland); }
+  .d-title-chip.folder { fill: var(--paper); }
   .d-node { fill: var(--paper); stroke: var(--ink); stroke-width: 1.5; }
   .d-node.wait { stroke: var(--hazard); fill: color-mix(in srgb, var(--hazard) 9%, var(--paper)); }
-  .d-node.ghost { fill: none; stroke: var(--ink-soft); stroke-dasharray: 5 4; }
   .d-name { font: 600 15px var(--label); fill: var(--ink); }
-  .ghost-node .d-name { fill: var(--ink-soft); }
   .d-status { font: 600 13px var(--label); fill: var(--ink); }
   .d-status.idle { fill: var(--woodland-deep); }
   .d-status.wait { fill: var(--hazard); }
@@ -154,6 +153,20 @@
   .d-chip { fill: var(--paper); }
   .d-edge-label { font: 600 12.5px var(--label); fill: var(--water); }
   .key svg { flex: none; overflow: visible; }
+  /* Running sessions with no messages to draw: a row under the diagram that wraps to the window. */
+  .solo-note { margin: 18px 0 8px; font: 500 14px/1.2 var(--label); color: var(--ink-soft); }
+  .solo-row { display: flex; flex-wrap: wrap; gap: 12px; }
+  .solo { display: flex; gap: 10px; align-items: flex-start; min-width: 140px; max-width: 276px;
+          padding: 9px 14px 9px 11px; background: var(--paper); border: 1.5px solid var(--ink);
+          border-radius: 7px; font: 600 15px/1.3 var(--label); }
+  .solo.wait { border-color: var(--hazard); background: color-mix(in srgb, var(--hazard) 9%, var(--paper)); }
+  .solo .mark { margin-top: 3px; }
+  .solo > div { min-width: 0; }
+  .solo-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .solo-status { font-size: 13px; }
+  .solo-status.idle { color: var(--woodland-deep); }
+  .solo-status.wait { color: var(--hazard); }
+  .solo-status.off { color: var(--ink-soft); font-weight: 500; }
 
   /* Sections below the map */
   h2 { font: 600 20px/1.2 var(--label); margin: 52px 0 10px; display: flex; align-items: baseline;
@@ -205,6 +218,7 @@
 
   <h2 class="first">How sessions connect <span class="h2-note">Messages from the last 24 hours</span></h2>
   <div class="diagram" id="diagram"></div>
+  <div id="diagram-solo"></div>
 
   <h2>Where sessions are working</h2>
   <div class="places" id="places"></div>
@@ -228,7 +242,6 @@
     <span><i class="mark shared"></i>checkout shared by two sessions</span>
     <span><svg width="30" height="10" aria-hidden="true"><line class="d-edge" x1="0" y1="5" x2="23" y2="5"/><path class="d-arrow" d="M22,1 L30,5 L22,9 z"/></svg>messages, arrow at the receiving end</span>
     <span><svg width="30" height="10" aria-hidden="true"><line class="d-edge idle-only" x1="0" y1="5" x2="23" y2="5"/><path class="d-arrow" d="M22,1 L30,5 L22,9 z"/></svg>asked to hear when it goes idle</span>
-    <span><svg width="18" height="14" aria-hidden="true"><rect class="d-node ghost" x="1" y="1" width="16" height="12" rx="3"/></svg>session not running now</span>
   </footer>
 </div>
 
@@ -367,15 +380,16 @@ const FONT = {
   edge: `600 12.5px ${LABEL_FONT}`,
 };
 const ROOT_OPTIONS = {
-  "elk.algorithm": "layered", "elk.direction": "RIGHT", "elk.edgeRouting": "ORTHOGONAL",
+  "elk.algorithm": "layered", "elk.edgeRouting": "ORTHOGONAL",
   "elk.hierarchyHandling": "INCLUDE_CHILDREN", "elk.json.shapeCoords": "ROOT", "elk.json.edgeCoords": "ROOT",
   "elk.edgeLabels.placement": "CENTER", "elk.padding": "[top=4,left=4,bottom=4,right=4]",
-  "elk.spacing.nodeNode": "24", "elk.layered.spacing.nodeNodeBetweenLayers": "44", "elk.aspectRatio": "2.4",
+  "elk.spacing.nodeNode": "24", "elk.layered.spacing.nodeNodeBetweenLayers": "44",
   "elk.spacing.edgeNode": "18", "elk.spacing.edgeEdge": "12", "elk.spacing.componentComponent": "26",
 };
 // Groups size to their sessions; their titles are trimmed to fit afterwards. (ELK 0.12 applies
 // nodeSize.minimum transposed on nested groups when the direction is DOWN.)
 const PLACE_OPTIONS = {"elk.padding": "[top=44,left=16,bottom=16,right=16]"};
+const SHARED_OPTIONS = {"elk.padding": "[top=10,left=10,bottom=10,right=10]"};
 const DAY_MS = 86400e3;
 const measure = document.createElement("canvas").getContext("2d");
 const textWidth = (text, font) => { measure.font = font; return measure.measureText(text).width; };
@@ -392,11 +406,18 @@ function fit(text, font, max, fromStart = false) {
   return cut(lo);
 }
 
+const sessionStatus = s => word(s) + (s.waitingFor ? ": " + s.waitingFor : "");
+// Claims and branches stay out of the boxes to keep the diagram narrow; hovering a box shows them.
+const sessionTitle = s => [s.label, s.checkout ? `${s.checkout}, on ${s.branch}` : s.cwd, s.claim && s.claim.text]
+  .filter(Boolean).join("\n");
+
 function buildGraph(state) {
   const live = new Map(state.sessions.map(s => [s.label, s]));
   const pairs = new Map();
   for (const m of state.messages) {
-    if (!m.crossSession || m.from === m.to || Date.now() - Date.parse(m.at) > DAY_MS) continue;
+    // Sessions that have ended stay out; the message list below still has their messages.
+    if (!m.crossSession || m.from === m.to || !live.has(m.from) || !live.has(m.to)
+        || Date.now() - Date.parse(m.at) > DAY_MS) continue;
     const key = [m.from, m.to].sort().join("\n");
     if (!pairs.has(key)) pairs.set(key, {a: m.from, b: m.to, ab: 0, ba: 0, idleOnly: 0, last: 0});
     const p = pairs.get(key);
@@ -404,30 +425,46 @@ function buildGraph(state) {
     if (!m.firstLine && m.notifyWhenIdle) p.idleOnly++;
     p.last = Math.max(p.last, Date.parse(m.at));
   }
+  const linked = new Set([...pairs.values()].flatMap(p => [p.a, p.b]));
 
   const ids = new Map(), info = new Map();
-  const box = (label, s) => {
+  const box = s => {
     const id = "n" + ids.size;
-    ids.set(label, id);
-    const status = s ? word(s) + (s.waitingFor ? ": " + s.waitingFor : "") : "not running";
-    // Claims stay out of the boxes to keep the diagram narrow; hovering a box shows one.
-    const claim = s && s.claim ? s.claim.text : "";
-    const inner = Math.min(230, Math.max(textWidth(label, FONT.name), textWidth(status, FONT.status)));
+    ids.set(s.label, id);
+    const status = sessionStatus(s);
+    const inner = Math.min(230, Math.max(textWidth(s.label, FONT.name), textWidth(status, FONT.status)));
     const width = Math.max(140, Math.ceil(inner) + 46), room = width - 46;
-    info.set(id, {ghost: !s, tone: s ? tone(s) : "off", bg: !!s && s.kind === "background", title: label + (claim ? "\n" + claim : ""),
-                  name: fit(label, FONT.name, room), status: fit(status, FONT.status, room)});
+    info.set(id, {tone: tone(s), bg: s.kind === "background", title: sessionTitle(s),
+                  name: fit(s.label, FONT.name, room), status: fit(status, FONT.status, room)});
     return {id, width, height: 56};
   };
-  const group = (id, label, about, cls, members) => {
-    info.set(id, {label, about, cls});
-    return {id, layoutOptions: PLACE_OPTIONS, children: members};
-  };
 
-  const children = groupPlaces(state).map((p, i) => group("c" + i, p.key,
-    p.repo ? `on ${p.branch}${p.worktree ? ", a worktree" : ""}` : p.missing ? "folder no longer exists" : "not a git checkout",
-    p.shared ? "shared" : p.repo ? "" : "folder", p.sessions.map(s => box(s.label, s))));
-  const ghosts = [...new Set([...pairs.values()].flatMap(p => [p.a, p.b]))].filter(n => !live.has(n));
-  if (ghosts.length) children.push(group("cg", "Not running now", "", "ghost", ghosts.map(n => box(n, null))));
+  // One group per repo, so worktree sessions sit with the main checkout; outside git, one per folder.
+  const places = new Map();
+  for (const s of state.sessions.filter(s => linked.has(s.label))) {
+    const key = s.repo || s.cwd;
+    if (!places.has(key)) places.set(key, {key, repo: !!s.repo, missing: s.cwdMissing, sessions: []});
+    places.get(key).sessions.push(s);
+  }
+  const shared = new Set(state.alerts.filter(a => a.kind === "shared-checkout").map(a => a.checkout));
+  const children = [...places.values()].map((p, i) => {
+    const id = "c" + i, branches = new Set(p.sessions.map(s => s.branch));
+    const about = !p.repo ? (p.missing ? "folder no longer exists" : "not a git checkout")
+      : branches.size > 1 ? "" : `on ${p.sessions[0].branch}${p.sessions.every(s => s.worktree) ? ", a worktree" : ""}`;
+    // Sessions sharing a checkout get a hatched patch: the whole group, or an inner one beside the repo's other sessions.
+    const sharing = Map.groupBy(p.sessions.filter(s => shared.has(s.checkout)), s => s.checkout);
+    if (sharing.size === 1 && [...sharing.values()][0].length === p.sessions.length) {
+      info.set(id, {label: p.key, about, cls: "shared"});
+      return {id, layoutOptions: PLACE_OPTIONS, children: p.sessions.map(box)};
+    }
+    info.set(id, {label: p.key, about, cls: p.repo ? "" : "folder"});
+    const members = p.sessions.filter(s => !shared.has(s.checkout)).map(box);
+    [...sharing.values()].forEach((group, j) => {
+      info.set(`${id}s${j}`, {cls: "shared"});
+      members.push({id: `${id}s${j}`, layoutOptions: SHARED_OPTIONS, children: group.map(box)});
+    });
+    return {id, layoutOptions: PLACE_OPTIONS, children: members};
+  });
 
   const edges = [...pairs.values()].map((p, i) => {
     const [src, dst] = p.ab >= p.ba ? [p.a, p.b] : [p.b, p.a];
@@ -437,7 +474,16 @@ function buildGraph(state) {
     return {id: "e" + i, sources: [ids.get(src)], targets: [ids.get(dst)],
             labels: [{text, width: Math.ceil(textWidth(text, FONT.edge)), height: 16}]};
   });
-  return {graph: {id: "root", layoutOptions: ROOT_OPTIONS, children, edges}, info};
+  return {graph: {id: "root", children, edges}, info, solo: state.sessions.filter(s => !linked.has(s.label))};
+}
+
+// Running sessions with no messages to draw sit in a row under the diagram that wraps to the window.
+function soloRow(sessions) {
+  if (!sessions.length) return "";
+  return `<p class="solo-note">No messages with other running sessions</p><div class="solo-row">`
+    + sessions.map(s => `<div class="solo${tone(s) === "wait" ? " wait" : ""}" title="${esc(sessionTitle(s))}">${mark(s)}
+        <div><div class="solo-name">${esc(s.label)}</div><div class="solo-status ${tone(s)}">${esc(sessionStatus(s))}</div></div></div>`).join("")
+    + `</div>`;
 }
 
 // Orthogonal path with softened corners.
@@ -455,34 +501,39 @@ function roundedPath(points, r = 6) {
   return d + ` L${end.x},${end.y}`;
 }
 
-// A group's title: its path trimmed from the front, then "on <branch>" if there is room left.
+// A group's title: its path trimmed from the front, then "on <branch>" if there is room left. It sits on a
+// patch of the group's own fill, so a connector entering the group from above passes under it.
 function placeTitle(c, d) {
   const room = c.width - 32;
   const name = fit(d.label, FONT.place, room, true);
   const left = room - textWidth(name, FONT.place) - 8;
   const about = d.about && textWidth(d.about, FONT.place) <= left ? d.about : "";
-  return `<text class="d-place-name" x="${c.x + 16}" y="${c.y + 27}"><title>${esc(d.label)}</title>${esc(name)}`
+  const width = textWidth(name, FONT.place) + (about ? 8 + textWidth(about, FONT.place) : 0);
+  return `<rect class="d-title-chip ${d.cls}" x="${c.x + 10}" y="${c.y + 11}" width="${Math.ceil(width) + 12}" height="23" rx="4"/>`
+       + `<text class="d-place-name" x="${c.x + 16}" y="${c.y + 27}"><title>${esc(d.label)}</title>${esc(name)}`
        + (about ? `<tspan class="d-place-about" dx="8">${esc(about)}</tspan>` : "") + `</text>`;
 }
 
 function diagramSvg(g, info) {
-  const groups = [], nodes = [], lines = [], chips = [];
-  for (const c of g.children) {
+  const groups = [], titles = [], nodes = [], lines = [], chips = [];
+  const draw = (c, nested) => {
     const d = info.get(c.id);
-    const rect = `x="${c.x}" y="${c.y}" width="${c.width}" height="${c.height}" rx="12"`;
-    groups.push(`<rect class="d-place ${d.cls}" ${rect}/>` + (d.cls === "shared" ? `<rect class="d-hatch-fill" fill="url(#d-hatch)" ${rect}/>` : "")
-      + placeTitle(c, d));
+    const rect = `x="${c.x}" y="${c.y}" width="${c.width}" height="${c.height}" rx="${nested ? 9 : 12}"`;
+    groups.push(`<rect class="d-place ${d.cls}" ${rect}/>` + (d.cls === "shared" ? `<rect class="d-hatch-fill" fill="url(#d-hatch)" ${rect}/>` : ""));
+    if (d.label) titles.push(placeTitle(c, d));
     for (const n of c.children) {
+      if (n.children?.length) { draw(n, true); continue; }
       const s = info.get(n.id), x = n.x, y = n.y;
-      const mark = s.ghost ? "" : s.bg
+      const mark = s.bg
         ? `<rect class="d-mark ${s.tone}" x="${x + 12}" y="${y + 14}" width="12" height="12" rx="2"/>`
         : `<circle class="d-mark ${s.tone}" cx="${x + 18}" cy="${y + 20}" r="6"/>`;
-      nodes.push(`<g class="${s.ghost ? "ghost-node" : ""}"><title>${esc(s.title)}</title>
-        <rect class="d-node${s.ghost ? " ghost" : s.tone === "wait" ? " wait" : ""}" x="${x}" y="${y}" width="${n.width}" height="${n.height}" rx="7"/>${mark}
+      nodes.push(`<g><title>${esc(s.title)}</title>
+        <rect class="d-node${s.tone === "wait" ? " wait" : ""}" x="${x}" y="${y}" width="${n.width}" height="${n.height}" rx="7"/>${mark}
         <text class="d-name" x="${x + 32}" y="${y + 25}">${esc(s.name)}</text>
         <text class="d-status ${s.tone}" x="${x + 32}" y="${y + 44}">${esc(s.status)}</text></g>`);
     }
-  }
+  };
+  for (const c of g.children) draw(c, false);
   for (const e of g.edges) {
     const d = info.get(e.id);
     for (const sec of e.sections || []) {
@@ -502,7 +553,21 @@ function diagramSvg(g, info) {
       <pattern id="d-hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect class="d-hatch" width="2.5" height="10"/></pattern>
       <marker id="d-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow" d="M0,0 L10,5 L0,10 z"/></marker>
     </defs>
-    ${groups.join("")}${lines.join("")}${nodes.join("")}${chips.join("")}</svg>`;
+    ${groups.join("")}${lines.join("")}${titles.join("")}${nodes.join("")}${chips.join("")}</svg>`;
+}
+
+// Lay out both ways and keep the one that needs the least shrinking to fit the column and window:
+// a wide window gets a wide diagram, a narrow or tall one a taller diagram.
+async function layoutToFit(graph, room) {
+  let best = null;
+  for (const direction of ["RIGHT", "DOWN"]) {
+    const g = structuredClone(graph);
+    g.layoutOptions = {...ROOT_OPTIONS, "elk.direction": direction, "elk.aspectRatio": (room.w / room.h).toFixed(2)};
+    const laid = await elk.layout(g);
+    const scale = Math.min(1, room.w / laid.width, room.h / laid.height);
+    if (!best || scale > best.scale + 0.05) best = {laid, scale};
+  }
+  return best.laid;
 }
 
 let diagramKey = "", diagramRun = 0;
@@ -512,19 +577,23 @@ async function drawDiagram(state) {
     el.innerHTML = `<div class="empty-note">The diagram needs web/vendor/elk.bundled.js from the peers plugin, and the page couldn't load it.</div>`;
     return;
   }
-  if (!state.sessions.length && !state.messages.some(m => m.crossSession)) {
+  if (!state.sessions.length) {
     diagramKey = "";
     el.innerHTML = `<div class="empty-note">No sessions are running, so there is nothing to connect.</div>`;
+    $("diagram-solo").innerHTML = "";
     return;
   }
-  const {graph, info} = buildGraph(state);
-  const key = JSON.stringify([graph, [...info]]);
+  const {graph, info, solo} = buildGraph(state);
+  const room = {w: Math.max(320, el.clientWidth), h: Math.max(320, Math.round(innerHeight * 0.8))};
+  const soloHtml = soloRow(solo);
+  const key = JSON.stringify([graph, [...info], soloHtml, room]);
   if (key === diagramKey) return;
   diagramKey = key;
   const run = ++diagramRun;
+  $("diagram-solo").innerHTML = soloHtml;
   try {
-    const laid = await elk.layout(graph);
-    if (run === diagramRun) el.innerHTML = diagramSvg(laid, info);
+    const svg = graph.children.length ? diagramSvg(await layoutToFit(graph, room), info) : "";
+    if (run === diagramRun) el.innerHTML = svg;
   } catch (err) {
     el.innerHTML = `<div class="empty-note">The diagram layout failed: ${esc(err.message || err)}</div>`;
   }
@@ -590,6 +659,13 @@ document.addEventListener("click", async e => {
   input.addEventListener("blur", () => finish(false));
 });
 $("show-all").addEventListener("change", () => last && render(last));
+
+// Re-run the diagram layout for the new window shape once resizing pauses.
+let resizeTimer = 0;
+addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => last && drawDiagram(last), 150);
+});
 
 refresh();
 setInterval(refresh, 2000);

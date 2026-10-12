@@ -105,7 +105,7 @@ _git_cache = {}
 
 
 def git_info(cwd):
-    """Checkout root, branch and worktree flag for a directory; None outside a repo."""
+    """Checkout root, main repo root, branch and worktree flag for a directory; None outside a repo."""
     hit = _git_cache.get(cwd)
     if hit and time.monotonic() - hit[0] < 5:
         return hit[1]
@@ -117,8 +117,12 @@ def git_info(cwd):
             capture_output=True, text=True, timeout=3)
         if out.returncode == 0:
             top, git_dir, common_dir, branch = out.stdout.splitlines()[:4]
-            # A linked worktree has its own git dir inside the main repo's common dir.
-            info = {"checkout": top, "branch": branch, "worktree": git_dir != common_dir}
+            # A linked worktree has its own git dir inside the main repo's common dir, which is
+            # the main checkout's .git (or, for a bare repo, the repo itself).
+            worktree = git_dir != common_dir
+            repo = top if not worktree else (
+                os.path.dirname(common_dir) if os.path.basename(common_dir) == ".git" else common_dir)
+            info = {"checkout": top, "repo": repo, "branch": branch, "worktree": worktree}
     except (OSError, subprocess.TimeoutExpired, ValueError):
         pass
     _git_cache[cwd] = (time.monotonic(), info)
@@ -243,6 +247,7 @@ def page_state():
             "cwd": short_path(cwd),
             "cwdMissing": bool(cwd) and not os.path.isdir(cwd),
             "checkout": short_path(git["checkout"]) if git else None,
+            "repo": short_path(git["repo"]) if git else None,
             "branch": git["branch"] if git else None,
             "worktree": bool(git and git["worktree"]),
             "startedAt": agent.get("startedAt"),
