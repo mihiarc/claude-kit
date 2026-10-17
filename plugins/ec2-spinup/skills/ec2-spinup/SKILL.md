@@ -43,7 +43,17 @@ aws iam simulate-principal-policy --policy-source-arn "$PRINCIPAL" \
   --query 'EvaluationResults[].[EvalActionName,EvalDecision]' --output text
 ```
 
-Tag-conditioned allows show as `implicitDeny` unless the matching context entry is passed; the one above covers the `managed_by` tag on create. `ssm:StartSession` conditioned on the instance's tag can only be confirmed by connecting, so treat an `implicitDeny` there as "check `references/agent-role.md` grants it" rather than final.
+Without `--resource-arns` the simulator evaluates every action against resource `*`, which allows scoped to specific ARNs never match. Under the agent role that means the EC2, SSM and PassRole actions all show `implicitDeny` in the call above. Re-check those one action at a time with a concrete ARN and the context the policy conditions on:
+
+```
+aws iam simulate-principal-policy --policy-source-arn "$PRINCIPAL" \
+  --action-names ec2:RunInstances --resource-arns arn:aws:ec2:<REGION>:<ACCT>:instance/i-example \
+  --context-entries ContextKeyName=aws:RequestTag/managed_by,ContextKeyValues=claude-code,ContextKeyType=string \
+                    ContextKeyName=ec2:MetadataHttpTokens,ContextKeyValues=required,ContextKeyType=string \
+  --query 'EvaluationResults[0].EvalDecision' --output text
+```
+
+For `ssm:StartSession` use the instance ARN with `ssm:resourceTag/managed_by`; for `iam:PassRole` use the worker role ARN with `iam:PassedToService=ec2.amazonaws.com`. Only an `explicitDeny`, or an `implicitDeny` on these concrete checks, means the caller really can't.
 
 **Pick the connection model from the results:**
 
