@@ -1,7 +1,7 @@
 {
   "name": "ec2-spinup",
-  "version": "0.1.0",
-  "description": "Starts a small, tagged, self-terminating EC2 worker in a chosen region, with instance-profile auth and IP-restricted SSH.",
+  "version": "0.2.0",
+  "description": "Starts a small, tagged, self-terminating EC2 worker in a chosen region: instance-profile auth, SSH over SSM with no open ports, user-applied IAM, and an optional scoped role for Claude.",
   "author": {
     "name": "Chris Mihiar",
     "url": "https://github.com/mihiarc"

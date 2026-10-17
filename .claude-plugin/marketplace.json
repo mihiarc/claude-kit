@@ -36,7 +36,7 @@
     {
       "name": "ec2-spinup",
       "source": "./plugins/ec2-spinup",
-      "description": "Starts a small, tagged, self-terminating EC2 worker in a chosen region, with instance-profile auth and IP-restricted SSH."
+      "description": "Starts a small, tagged, self-terminating EC2 worker in a chosen region: instance-profile auth, SSH over SSM with no open ports, user-applied IAM, and an optional scoped role for Claude."
     },
     {
       "name": "handoff",
