@@ -38,7 +38,8 @@ context_tokens_yellow=250000
 IFS=$'\x1f' read -r session_name model_display_name effort_level current_directory_name \
                  context_input_tokens \
                  five_hour_percent five_hour_reset_epoch \
-                 seven_day_percent seven_day_reset_epoch < <(
+                 seven_day_percent seven_day_reset_epoch \
+                 session_id session_cost_usd < <(
   printf '%s' "$session_json" | jq -r '
     [ (.session_name // ""),
       (.model.display_name // "?"),
@@ -48,7 +49,9 @@ IFS=$'\x1f' read -r session_name model_display_name effort_level current_directo
       (.rate_limits.five_hour.used_percentage  // -1 | floor),
       (.rate_limits.five_hour.resets_at        // -1),
       (.rate_limits.seven_day.used_percentage  // -1 | floor),
-      (.rate_limits.seven_day.resets_at        // -1)
+      (.rate_limits.seven_day.resets_at        // -1),
+      (.session_id // ""),
+      (.cost.total_cost_usd // 0)
     ] | map(tostring) | join("\u001f")'
 )
 
@@ -187,5 +190,24 @@ seven_day_segment=$(build_limit_segment "7d" "$seven_day_percent" "$seven_day_re
 
 [ -n "$five_hour_segment" ] && second_line="${second_line} ${color_dim}│${color_reset} ${five_hour_segment}"
 [ -n "$seven_day_segment" ] && second_line="${second_line} ${color_dim}│${color_reset} ${seven_day_segment}"
+
+# Spend: tracked only while a window is exhausted, i.e. while on usage credits.
+# Each session writes its running cost to spend/<date>/<session_id>; summing
+# those gives today's and this month's totals across sessions, and the month's
+# per-day ledger is rewritten to spend/<YYYY-MM>.tsv. Session cost includes any
+# usage from before the limit hit, so the figures are an upper bound.
+monthly_budget_usd=500
+if (( five_hour_percent >= 100 || seven_day_percent >= 100 )) && [ -n "$session_id" ]; then
+  spend_root="$HOME/.claude/spend"
+  spend_dir="$spend_root/$(date +%F)"
+  mkdir -p "$spend_dir" && printf '%s\n' "$session_cost_usd" > "$spend_dir/$session_id"
+  month=$(date +%Y-%m)
+  for day_dir in "$spend_root/$month"-*/; do
+    printf '%s\t%s\n' "$(basename "$day_dir")" "$(cat "$day_dir"* | awk '{t+=$1} END {printf "%.2f", t}')"
+  done > "$spend_root/$month.tsv"
+  day_cost_usd=$(awk -v d="$(date +%F)" '$1==d {print $2}' "$spend_root/$month.tsv")
+  month_cost_usd=$(awk '{t+=$2} END {printf "%.0f", t}' "$spend_root/$month.tsv")
+  second_line="${second_line} ${color_dim}│${color_reset} ${color_red}\$$(printf '%.2f' "$session_cost_usd")${color_reset} ${color_dim}(day \$${day_cost_usd} · mo \$${month_cost_usd}/\$${monthly_budget_usd})${color_reset}"
+fi
 
 printf '%b\n' "$second_line"
