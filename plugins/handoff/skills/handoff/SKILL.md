@@ -260,6 +260,11 @@ to `main`). Don't import one project's idiom into another.
    ```
    cd <main-checkout> && claude --name <repo>--<task> --worktree <task> "read ~/.claude/handoffs/<repo>--<task>.md and follow it"
    ```
+   If the user's CLAUDE.md names another launcher for the kind of work the next session will do
+   (for example, a wrapper that starts Claude under a scoped cloud role), put it in place of
+   `claude` in either line and keep the arguments. Plain `claude` would start that session under
+   the wrong identity.
+
    With it, give the path and a short summary of what the prompt decides and flags. Don't print
    the prompt itself: the new session reads the file. Say in one line what you archived, or what
    you kept beside the new prompt.
