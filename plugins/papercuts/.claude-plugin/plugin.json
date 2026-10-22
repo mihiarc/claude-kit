@@ -1,0 +1,11 @@
+{
+  "name": "papercuts",
+  "version": "0.1.0",
+  "description": "A papercut log that pays off: a sweep skill that triages it into gotchas, repo PRs you pick and open decisions, and a hook that hands a session the one gotcha line its command or error needs.",
+  "author": {
+    "name": "Chris Mihiar",
+    "url": "https://github.com/mihiarc"
+  },
+  "repository": "https://github.com/mihiarc/claude-kit",
+  "license": "MIT"
+}

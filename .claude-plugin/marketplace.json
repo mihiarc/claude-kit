@@ -57,6 +57,11 @@
       "name": "speaker-prep",
       "source": "./plugins/speaker-prep",
       "description": "Turns a deck or brief into talking points or a timed script, with print-ready PDFs."
+    },
+    {
+      "name": "papercuts",
+      "source": "./plugins/papercuts",
+      "description": "A papercut log that pays off: a sweep skill that triages it into gotchas, repo PRs you pick and open decisions, and a hook that hands a session the one gotcha line its command or error needs."
     }
   ]
 }
