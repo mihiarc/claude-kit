@@ -3,7 +3,7 @@ name: handoff
 description: Write a self-contained kickoff prompt so a NEW session inherits this session's frame (goal, sources, assets, settled decisions, deliverables, biggest risk), saved to ~/.claude/handoffs/<repo>.md. Use for "write a prompt for a new session", "hand off to the next session", "kickoff prompt for <task>", "session handoff".
 metadata:
   author: mihiarc
-  version: "3.0"
+  version: "3.1"
 ---
 
 # handoff
@@ -243,14 +243,22 @@ to `main`). Don't import one project's idiom into another.
    only if it traces to a Decision, a Deliverable, the Guardrail or the Caveat; the rest is
    inventory (who's on leave, contract dates, repo renames, tours of untouched components,
    anything hedged as "worth knowing") (writing-guide: "The subtractive pass").
-4. **Hand over.** The saved file is the deliverable. Always give the launcher line. It names the
-   session after the file's stem, which becomes the session's messaging address:
+4. **Hand over.** The saved file is the deliverable. Always give the launcher line. It starts with
+   a `cd` to the directory the new session works in, because the user often exits this session
+   first and the shell they launch from could be anywhere. It names the session after the file's
+   stem, which becomes the session's messaging address:
    ```
-   claude --name <stem> "read ~/.claude/handoffs/<stem>.md and follow it"
+   cd <work-dir> && claude --name <stem> "read ~/.claude/handoffs/<stem>.md and follow it"
    ```
-   A `<repo>--<task>.md` prompt is a second session on a repo, so it gets its own worktree:
+   `<work-dir>` is the root of the checkout the work lives in (`git rev-parse --show-toplevel`),
+   or the folder the task lives in when there's no repo. Write it as a full absolute path,
+   single-quoted if it contains spaces. If this session runs in a worktree and the next one
+   continues there, that root is the worktree, so tell the user to keep it when they exit.
+
+   A `<repo>--<task>.md` prompt for a new second session on a repo gets its own worktree, made
+   from the main checkout (the parent of `git rev-parse --path-format=absolute --git-common-dir`):
    ```
-   claude --name <repo>--<task> --worktree <task> "read ~/.claude/handoffs/<repo>--<task>.md and follow it"
+   cd <main-checkout> && claude --name <repo>--<task> --worktree <task> "read ~/.claude/handoffs/<repo>--<task>.md and follow it"
    ```
    With it, give the path and a short summary of what the prompt decides and flags. Don't print
    the prompt itself: the new session reads the file. Say in one line what you archived, or what
