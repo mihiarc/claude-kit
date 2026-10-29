@@ -265,6 +265,20 @@ to `main`). Don't import one project's idiom into another.
    `claude` in either line and keep the arguments. Plain `claude` would start that session under
    the wrong identity.
 
+   **Free the name before the launch.** If another session still holds the name, the new session
+   doesn't get it cleanly. Messages to the name keep reaching the old holder, and a message can
+   wake it beside the new one, so the new session never hears what its prompt tells it to wait
+   for. The holder is most often this session, handing its own task on under its own name. A
+   background session keeps running after its window closes. List the holders:
+   ```bash
+   claude agents --json | jq -c '.[] | select(.name == "<stem>") | {id, kind, cwd}'
+   ```
+   For each holder with an `id` (a background session, this one included), start the launcher
+   line with `claude stop <id> && `. Stopping keeps its conversation, so `claude attach <id>`
+   still reads it. Never use `claude rm`, which deletes a worktree the new session may share. An
+   interactive holder has no `id`: tell the user to exit it before they launch, and say so
+   plainly when that holder is this session.
+
    With it, give the path and a short summary of what the prompt decides and flags. Don't print
    the prompt itself: the new session reads the file. Say in one line what you archived, or what
    you kept beside the new prompt.
