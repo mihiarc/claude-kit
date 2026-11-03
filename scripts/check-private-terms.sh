@@ -10,7 +10,7 @@ set -euo pipefail
 terms="$(git rev-parse --git-dir)/info/private-terms"
 [ -s "$terms" ] || { echo "check-private-terms: no $terms, nothing checked" >&2; exit 0; }
 patterns=$(grep -v -E '^[[:space:]]*(#|$)' "$terms")
-skip=(':(exclude)plugins/peers/web/vendor/*' ':(exclude)scripts/check-private-terms.sh')
+skip=(':(exclude)scripts/check-private-terms.sh')
 found=0
 scan() {  # git grep args...
   if git grep -n -I -i -E -e "$patterns" "$@" -- . "${skip[@]}"; then found=1; fi

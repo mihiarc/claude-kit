@@ -9,11 +9,6 @@
   },
   "plugins": [
     {
-      "name": "peers",
-      "source": "./plugins/peers",
-      "description": "A local web page of the Claude Code sessions on this machine: which are working, waiting on you or idle, what each has claimed, and who messaged whom."
-    },
-    {
       "name": "stacked-pr-guard",
       "source": "./plugins/stacked-pr-guard",
       "description": "Blocks deleting a branch that open pull requests are based on, so GitHub doesn't close the PRs stacked on it."

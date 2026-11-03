@@ -15,7 +15,6 @@ Skills installed from a plugin are namespaced, so the handoff skill runs as `/ha
 
 | Plugin | Kind | What it does |
 |---|---|---|
-| [peers](plugins/peers) | hooks, CLI, web page | A local page of the Claude Code sessions on this machine: which are working, waiting on you or idle, what each has claimed, and who messaged whom, with a diagram of the connections. |
 | [stacked-pr-guard](plugins/stacked-pr-guard) | hook | Blocks `gh pr merge --delete-branch` and `git push --delete` when open PRs are based on the branch, since GitHub closes those PRs instead of retargeting them. |
 | [codebase-audit](plugins/codebase-audit) | skill | A full critical review of a codebase or component, with severity-rated findings checked against current best practice and filed as GitHub issues once you confirm. |
 | [disk-cleanup-inventory](plugins/disk-cleanup-inventory) | skill | A tiered inventory of what is using disk space, delivered as a checklist worksheet; deletes only what you tick. |
@@ -27,26 +26,6 @@ Skills installed from a plugin are namespaced, so the handoff skill runs as `/ha
 | [speaker-prep](plugins/speaker-prep) | skill | Turns a deck or brief into talking points or a timed script, with print-ready PDFs. |
 
 Several skills read your own `CLAUDE.md` for specifics such as where files live, what is confidential, and how to tag cloud resources, so they work best when those are written down.
-
-### peers
-
-The plugin installs two hooks: one logs each `SendMessage` and the other opens the page when a session starts. Inside a session, `peers` is on the Bash tool's PATH, so a session can run `peers claim "what I'm on"`. To run it from your own shell, link it onto your PATH:
-
-```sh
-ln -s ~/.claude/plugins/cache/claude-kit/peers/*/bin/peers ~/.local/bin/peers   # or the path to a checkout
-peers            # start the page at http://127.0.0.1:4790 and open it
-peers stop
-```
-
-It uses only the Python standard library and `claude agents --json`, and listens on 127.0.0.1 only. Settings:
-
-- `PEERS_HOME`: where messages, claims and logs are kept (default `~/.claude/peers`)
-
-- `PEERS_CODE_ROOT`: folders under it are shown relative to it (default `~/Github`)
-
-- `PEERS_PORT`: default `4790`
-
-The diagram is laid out with [elkjs](https://github.com/kieler/elkjs) 0.12.0 (EPL-2.0), bundled in `plugins/peers/web/vendor` so the page works offline.
 
 ## Extras
 
@@ -60,7 +39,7 @@ These can't ship as plugins, so they're set up by hand.
 
   The budget and color thresholds are variables at the top of the script.
 
-- **[Session names](extras/zsh/claude-names.zsh)** is a zsh wrapper that starts every interactive `claude` with a stable `--name`: the repo name in a main checkout, `<repo>--<task>` in a worktree, and the folder name elsewhere. Sessions use these names as messaging addresses, and peers shows them. Source it from `~/.zshrc`.
+- **[Session names](extras/zsh/claude-names.zsh)** is a zsh wrapper that starts every interactive `claude` with a stable `--name`: the repo name in a main checkout, `<repo>--<task>` in a worktree, and the folder name elsewhere. Sessions use these names as messaging addresses. Source it from `~/.zshrc`.
 
 ## Using a checkout directly
 
@@ -75,4 +54,4 @@ Hooks set up this way go in your own `settings.json`, using each plugin's `hooks
 
 ## License
 
-MIT, except the bundled elkjs, which is EPL-2.0.
+MIT.
