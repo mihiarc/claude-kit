@@ -1,9 +1,9 @@
 ---
 name: handoff
-description: Write a self-contained kickoff prompt so a NEW session inherits this session's frame (goal, sources, assets, settled decisions, deliverables, biggest risk), saved to ~/.claude/handoffs/<repo>.md. Use for "write a prompt for a new session", "hand off to the next session", "kickoff prompt for <task>", "session handoff".
+description: Write a self-contained kickoff prompt so a NEW session inherits this session's frame (goal, sources, assets, settled decisions, deliverables, biggest risk), saved to ~/.claude/handoffs/<repo>.md and started with `ho`. Use when the context hook says to hand off, and for "write a prompt for a new session", "hand off to the next session", "kickoff prompt for <task>", "session handoff".
 metadata:
   author: mihiarc
-  version: "3.1"
+  version: "4.0"
 ---
 
 # handoff
@@ -53,8 +53,9 @@ When the user asks for a prompt to start the next session, hand off the next tas
 "Next" line in a project journal, the next agenda item, an open TODO). Not for planning *this*
 session (just do the work) or one-off questions.
 
-It usually runs **mid-session at a deliberate transition point**: the user watches their context
-fill (often around half) and hands off early so the work transfers cleanly. So **context is the
+It usually runs **mid-session at a deliberate transition point**: the user asks, or the context
+hook (`ho --hook`) says the session has passed its soft or hard hand-off point, so the work
+transfers before context gets expensive. So **context is the
 scarce resource and you are spending the user's** — don't re-explore a repo you've been working
 in; delegate verification and broad searches to subagents; targeted checks over tours. And **the
 conversation's knowledge is the perishable part** — harvest dead ends, settled arguments and the
@@ -110,12 +111,19 @@ yourself. Either way, **verify every path and section number you cite** (Step 6)
 never invent a convention to fill a slot. A short honest prompt beats a complete-looking one built
 on invented structure (writing-guide: "When the project is thin on structure").
 
+**Rules several sessions share** (a push command, a sandbox workaround, a delivery format, gates)
+go in one `~/.claude/handoffs/<project>-common.md` that each prompt cites in one line; don't copy
+them into each prompt. Rules already in the user's CLAUDE.md need no repeating: the next session
+loads them.
+
 ## Step 3 — Surface the decisions to settle first
 
 List the non-obvious or hard-to-reverse choices the next session must make **before heavy
 implementation**, numbered. For each, state the options crisply and a **recommended lean** ("I
 lean X because…") — a lean lets the human reply "yes to all"; a bare menu hands the work back.
-Tell the new session to **confirm these with the human before building**.
+Tell the new session to **confirm these with the human before building**. If this session reports
+to another session (its own kickoff says to report to `<name>`), carry that line and its list of
+don'ts into the new prompt word for word, and have the next session take its Decisions there.
 
 ## Step 4 — Name the early caveat (+ pivot)
 
@@ -135,11 +143,24 @@ not, cut it. **Mechanism beats inventory** — the closed enum, the hard-coded t
 mismatch behind the blocker earn space; file lists, repo tours, contract dates and org context
 usually don't (writing-guide: "Length, and mechanism over inventory").
 
+- **Read first names the section, not the document**, and states what it holds. The next session
+  re-reads everything it loads on every request for the rest of its life.
+- **Status is a pointer.** Results, fit tables, "done" lists and open-decision text live in git,
+  the PR, a report file or a decisions file. Cite the one place and say what to check there.
+- **Rewrite the file; never layer.** The new prompt replaces the old one whole: no STATUS banner
+  over stale sections, no "day 3" or dated notes. That history is in git and the transcripts.
+- **Cut before you save.** Keep a line only if it traces to a Decision, a Deliverable, the
+  Guardrail or the Caveat; the rest is inventory (writing-guide: "The subtractive pass").
+
 The shape below is the default, not a fixed form: drop empty sections, add one if needed. **Goal**,
 **Read first** and **Caveat** are not droppable — Read-first is what the next session reads to
 inherit the frame. If the handoff covers **two tasks**, give the second its own block.
 
 ```
+---
+workdir: <absolute path of the checkout or folder the next session works in>
+launcher: claude
+---
 Goal: <task in one or two sentences — what, the WHY, how it relates to prior work, and
 explicitly what it does NOT touch.>
 <1–2 sentences of essential framing that motivates the task.>
@@ -197,91 +218,67 @@ Derive Deliverables from what this project actually produces (era-stamped output
 tests for a modeling repo; rebuilt figures and a coauthor sign-off for a manuscript that commits
 to `main`). Don't import one project's idiom into another.
 
-## Step 6 — Save, verify, hand over
+## Step 6 — Save, check, hand over
 
-1. **Look before you save.** A project has one live handoff, `~/.claude/handoffs/<name>.md`, where
-   `<name>` is the repo's directory name, or a short task slug if there's no repo. It sits outside
-   the repo so it can't dirty the working tree. Before writing it, see what's already there:
+This step runs at the top of a full context, where every tool call is expensive: keep it to the
+three calls below plus the write.
+
+1. **Look before you save.** The next session's handoff is `~/.claude/handoffs/<name>.md`, where
+   `<name>` is its session name: the repo's directory name, `<repo>--<task>` for a worktree
+   session, or a short slug with no repo. It sits outside the repo so it can't dirty the tree.
    ```bash
    python3 "${CLAUDE_SKILL_DIR}/scripts/prior_handoffs.py" <repo-root>    # or: --name <slug>
    ```
-   The script searches every name the project goes by. That means the directory name and the git
-   remote's name, so the old file of a renamed repo turns up too. For each earlier prompt it prints
-   the date written, its Goal line, and whether a session was launched from it since. It also lists
-   companion files. Then, for each entry:
+   It lists earlier prompts under every name the project goes by, with each one's Goal, whether a
+   session launched from it, and a hint. Follow the hint:
 
    | Found | Do |
    |---|---|
    | nothing | write `<name>.md` |
    | your own draft from this session | overwrite it |
-   | a prompt that was launched after it was written | archive it, then write |
-   | an unlaunched prompt for the same task | archive it, then write; yours replaces it |
+   | a live session's handoff, a peer's `<repo>--<other>`, or the main checkout's while you're a peer | leave it: it's another session's |
+   | a prompt that was launched after it was written | trash it, then write |
+   | an unlaunched prompt for the same task | trash it, then write; yours replaces it |
    | an unlaunched prompt for a different task | ask the user in one line: replace it, or keep both, with yours as `<name>--<task-slug>.md` |
-   | a prompt under a former name | archive it, and write under the current name |
+   | a prompt under a former name | trash it, and write under the current name |
    | a variant whose Goal is about another project | leave it |
 
-   To archive, run `prior_handoffs.py --archive <entry>...`. It moves entries into
-   `~/.claude/handoffs/archive/` as `<stem>.<date-written>`, and never overwrites one there.
+   `prior_handoffs.py --trash <entry>...` moves entries to the macOS Trash, recoverable until it's
+   emptied. Keep no archive: a launched prompt's work lives in git, its PR and the transcript.
+   Never delete a handoff outright, and never write over or trash one whose Goal you haven't read:
+   "not launched" only means no session named the file. Files that ship with the prompt go in
+   `~/.claude/handoffs/<name>/`, cited by full path; when you replace a prompt, trash the
+   companions it no longer cites.
 
-   **Never delete a handoff, and never write over one whose Goal you haven't read.** A launched
-   prompt is the record of what the last session was told. An unlaunched one may be work the user
-   still means to start. "Not launched" only means no session has named the file since it was
-   written. A session may still have done the work without opening the file.
+2. **Write it, starting with the launch frontmatter** from the Step 5 template. `workdir` is the
+   root of the checkout the work lives in (`git rev-parse --show-toplevel`) or the task's folder.
+   For a new second session on a repo it is `<main-checkout>/.claude/worktrees/<task>` with the
+   file named `<repo>--<task>.md`, and `ho` creates the worktree. `launcher` is `claude` unless the
+   user's CLAUDE.md names another launcher for this kind of work (for example a wrapper that
+   starts Claude under a scoped cloud role).
 
-   Files that ship with the prompt (a script, a small table) go in `~/.claude/handoffs/<name>/`,
-   and the prompt cites them by full path. When you replace a prompt, archive the companion files
-   the new prompt no longer cites.
-2. **Verify the references** and fix what it flags in place:
+3. **Check the references** and fix what it flags in place:
    ```bash
-   python3 "${CLAUDE_SKILL_DIR}/scripts/check_refs.py" ~/.claude/handoffs/<file-you-saved>.md <repo-root>
+   python3 "${CLAUDE_SKILL_DIR}/scripts/check_refs.py" ~/.claude/handoffs/<name>.md <repo-root>
    ```
-   Each path is `ok`, `creates` (labelled as a deliverable — fine), `PARTIAL` (fix the prefix) or
-   `MISSING` (correct, drop, or label as created). Re-run until it exits 0. Write cross-repo paths
-   as full `~/`-anchored paths, and grep each cited section heading — the script can't check
-   section numbers (writing-guide: "Reading the check_refs.py report").
-3. **Subtractive pass** — re-read the saved file *as a separate step*, only to delete. Keep a line
-   only if it traces to a Decision, a Deliverable, the Guardrail or the Caveat; the rest is
-   inventory (who's on leave, contract dates, repo renames, tours of untouched components,
-   anything hedged as "worth knowing") (writing-guide: "The subtractive pass").
-4. **Hand over.** The saved file is the deliverable. Always give the launcher line. It starts with
-   a `cd` to the directory the new session works in, because the user often exits this session
-   first and the shell they launch from could be anywhere. It names the session after the file's
-   stem, which becomes the session's messaging address:
-   ```
-   cd <work-dir> && claude --name <stem> "read ~/.claude/handoffs/<stem>.md and follow it"
-   ```
-   `<work-dir>` is the root of the checkout the work lives in (`git rev-parse --show-toplevel`),
-   or the folder the task lives in when there's no repo. Write it as a full absolute path,
-   single-quoted if it contains spaces. If this session runs in a worktree and the next one
-   continues there, that root is the worktree, so tell the user to keep it when they exit.
+   Each path is `ok`, `creates` (labelled as a deliverable), `PARTIAL` (fix the prefix) or
+   `MISSING` (correct, drop, or label as created). Write cross-repo paths as full `~/` paths, and
+   grep any cited section heading yourself; the script can't check section numbers
+   (writing-guide: "Reading the check_refs.py report").
 
-   A `<repo>--<task>.md` prompt for a new second session on a repo gets its own worktree, made
-   from the main checkout (the parent of `git rev-parse --path-format=absolute --git-common-dir`):
-   ```
-   cd <main-checkout> && claude --name <repo>--<task> --worktree <task> "read ~/.claude/handoffs/<repo>--<task>.md and follow it"
-   ```
-   If the user's CLAUDE.md names another launcher for the kind of work the next session will do
-   (for example, a wrapper that starts Claude under a scoped cloud role), put it in place of
-   `claude` in either line and keep the arguments. Plain `claude` would start that session under
-   the wrong identity.
+4. **Hand over with `ho`.** It frees the name (stops a background holder, refuses on a live
+   interactive one), starts the session in `workdir` under `launcher`, names it after the file's
+   stem, and opens it with "read ~/.claude/handoffs/<name>.md and follow it".
+   - **Next session in this window** (the usual case):
+     `python3 "${CLAUDE_SKILL_DIR}/scripts/ho.py" --next <name>`. It prints what happens: this
+     session exits when the turn ends and the next starts in the same window, or the user types
+     `/clear` or `/exit`, or (when the shell doesn't load `ho.zsh`) the command to run.
+   - **This session keeps running**, or the user starts it later: tell them `ho <name>` (any
+     terminal) or `ho --window <name>`.
+   - **You report to a coordinator:** send it the handoff's path; it runs `ho --relaunch <name>`.
 
-   **Free the name before the launch.** If another session still holds the name, the new session
-   doesn't get it cleanly. Messages to the name keep reaching the old holder, and a message can
-   wake it beside the new one, so the new session never hears what its prompt tells it to wait
-   for. The holder is most often this session, handing its own task on under its own name. A
-   background session keeps running after its window closes. List the holders:
-   ```bash
-   claude agents --json | jq -c '.[] | select(.name == "<stem>") | {id, kind, cwd}'
-   ```
-   For each holder with an `id` (a background session, this one included), start the launcher
-   line with `claude stop <id> && `. Stopping keeps its conversation, so `claude attach <id>`
-   still reads it. Never use `claude rm`, which deletes a worktree the new session may share. An
-   interactive holder has no `id`: tell the user to exit it before they launch, and say so
-   plainly when that holder is this session.
-
-   With it, give the path and a short summary of what the prompt decides and flags. Don't print
-   the prompt itself: the new session reads the file. Say in one line what you archived, or what
-   you kept beside the new prompt.
+   Then give the user the path, a short summary of what the prompt decides and flags, and one line
+   on what you trashed or kept. Don't print the prompt: the next session reads the file.
 
 ## Reference
 
@@ -290,7 +287,10 @@ to `main`). Don't import one project's idiom into another.
 - `references/example-prompt.md` — a complete real example ("size × grade valuation" in a
   timber-accounting research repo) showing the grounding depth to aim for. It's a rich, doc-heavy
   case; a thinner project should produce a shorter prompt, not a padded one.
-- `scripts/prior_handoffs.py` — Step 6.1. It lists a project's earlier handoffs under all of the
-  project's names, with launch status, and `--archive` moves them aside. Its docstring says what
-  the launch check can and can't see.
-- `scripts/check_refs.py` — Step 6.2. It checks every path cited in the prompt.
+- `scripts/prior_handoffs.py` — Step 6.1: earlier handoffs under all the project's names, with
+  launch status and per-entry hints; `--trash` moves entries to the Trash.
+- `scripts/check_refs.py` — Step 6.3: checks every path the prompt cites.
+- `scripts/ho.py` — Step 6.4: starts the next session from the handoff, queues it to follow this
+  one (`--next`), replaces a live one (`--relaunch`), and as a hook watches context size and
+  exits a session that has handed off. `--help` lists the modes and the hook setup; the shell
+  side is claude-kit's `extras/zsh/ho.zsh`.

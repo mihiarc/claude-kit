@@ -27,8 +27,8 @@ color_reset='\033[0m'
 # The context bar fills toward a handoff budget, in tokens. Absolute because
 # every turn re-reads the whole context, so cost tracks tokens, not the share
 # of the model's window. Yellow: start looking for a stopping point. Red: hand off.
-handoff_budget_tokens=400000
-context_tokens_yellow=250000
+handoff_budget_tokens=${HO_CONTEXT_HARD:-400000}
+context_tokens_yellow=${HO_CONTEXT_SOFT:-250000}
 
 # --- Parse every field we need in a single jq pass --------------------------
 # Percentages are floored to integers so bash arithmetic works. Absent values

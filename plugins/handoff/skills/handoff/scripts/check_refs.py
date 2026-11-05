@@ -257,6 +257,7 @@ def main(argv):
         return 2
 
     text = open(draft, encoding="utf-8", errors="replace").read()
+    text = re.sub(r"\A---\n.*?\n---\n", "", text, flags=re.S)  # ho launch frontmatter
     scannable = URL_ANYWHERE_RE.sub(" ", text)
     # Search the creates-label against the EXPANDED text: candidates come out of brace
     # expansion, so matching them against raw lines (which still contain "{a,b}") meant

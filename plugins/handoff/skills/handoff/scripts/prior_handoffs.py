@@ -3,7 +3,7 @@
 
 Usage:
     python3 prior_handoffs.py [repo-root] [--name NAME]... [--json]
-    python3 prior_handoffs.py --archive ENTRY [ENTRY ...]
+    python3 prior_handoffs.py --trash ENTRY [ENTRY ...]
 
 A project keeps one live handoff, ~/.claude/handoffs/<name>.md. Writing over
 that path without looking loses things:
@@ -36,12 +36,13 @@ picked up the task without naming the file is invisible here, so "not launched"
 means no session named the file after it was written. It does not mean the work
 was never done.
 
---archive moves each ENTRY (a name in the handoffs directory, or a path to one)
-into ~/.claude/handoffs/archive/ as <stem>.<YYYY-MM-DD><ext>, dated by the
-entry's modification time. It adds -2, -3 ... rather than overwrite anything.
-Nothing is ever deleted.
+--trash moves each ENTRY (a name in the handoffs directory, or a path to one)
+into the macOS Trash (~/.Trash), where it can be recovered until the Trash is
+emptied. It adds " 2", " 3" ... rather than overwrite anything there. There is
+no archive folder: a launched prompt's work lives in git, its PR and the
+session's transcript, and a folder of old prompts is clutter.
 
-Exit status: 0, or 1 if an --archive entry was missing or outside the handoffs
+Exit status: 0, or 1 if a --trash entry was missing or outside the handoffs
 directory.
 """
 
@@ -66,7 +67,17 @@ def project_names(root, extra):
     names = []
     if root:
         path = Path(root).expanduser().resolve()
-        names.append(path.name)
+        try:
+            common = subprocess.run(
+                ["git", "-C", str(path), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                capture_output=True, text=True, timeout=5,
+            ).stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            common = ""
+        main = Path(common).parent.resolve() if common else path
+        if main != path:  # a worktree: <repo>--<task>, then the main checkout's name
+            names.append(f"{main.name}--{path.name}")
+        names.append(main.name)
         try:
             url = subprocess.run(
                 ["git", "-C", str(path), "remote", "get-url", "origin"],
@@ -175,16 +186,32 @@ def find_launches(prompts, transcripts_dir):
     return found
 
 
+def live_names():
+    """Names held by running sessions; their handoffs belong to them."""
+    try:
+        out = subprocess.run(["claude", "agents", "--json"], capture_output=True, text=True, timeout=20).stdout
+        return {a.get("name") for a in json.loads(out or "[]") if a.get("name")}
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return set()
+
+
 def hint(item, current):
+    stem = item["entry"].rstrip("/")
+    stem = stem[:-3] if stem.endswith(".md") else stem
+    if stem != current:
+        if item.get("live"):
+            return "a live session holds this name: leave it"
+        if "--" in stem[len(item["matched_name"]):] or current.startswith(stem + "--"):
+            return "another session's handoff (peer or main checkout): leave it"
     if item["kind"] != "prompt":
-        return "companion: archive it unless the new prompt cites it"
+        return "companion: trash it unless the new prompt cites it"
     if item["match"] == "variant":
         return "read its Goal: another task of this project, or another project"
     if item["matched_name"] != current:
-        return "former name: archive it, write under the current name"
+        return "former name: trash it, write under the current name"
     if item["launched"]:
-        return "launched: archive it, then write"
-    return "not launched: same task -> archive; different task -> ask the user"
+        return "launched: trash it, then write"
+    return "not launched: same task -> trash; different task -> ask the user"
 
 
 def list_handoffs(args):
@@ -196,7 +223,7 @@ def list_handoffs(args):
     entries = []
     if handoffs.is_dir():
         for entry in sorted(handoffs.iterdir()):
-            if entry.name == "archive" or entry.name.startswith("."):
+            if entry.name.startswith("."):
                 continue
             match, name = classify(entry, names)
             if match:
@@ -220,7 +247,10 @@ def list_handoffs(args):
                 if launch else None
             ),
         })
+    live = live_names()
     for item in items:
+        stem = item["entry"].rstrip("/")
+        item["live"] = (stem[:-3] if stem.endswith(".md") else stem) in live
         item["hint"] = hint(item, names[0])
 
     if args.json:
@@ -243,11 +273,11 @@ def list_handoffs(args):
     return 0
 
 
-def archive(args):
+def trash(args):
     handoffs = Path(args.handoffs_dir).expanduser().resolve()
-    dest = handoffs / "archive"
+    dest = Path.home() / ".Trash"
     status = 0
-    for raw in args.archive:
+    for raw in args.trash:
         source = Path(raw).expanduser()
         if not source.exists():
             source = handoffs / raw
@@ -260,16 +290,14 @@ def archive(args):
             print(f"REFUSED  {raw}: not directly in {handoffs}")
             status = 1
             continue
-        date = dt.date.fromtimestamp(source.stat().st_mtime).isoformat()
         stem, ext = (source.stem, source.suffix) if source.is_file() else (source.name, "")
-        dest.mkdir(exist_ok=True)
-        target = dest / f"{stem}.{date}{ext}"
+        target = dest / source.name
         n = 2
         while target.exists():
-            target = dest / f"{stem}.{date}-{n}{ext}"
+            target = dest / f"{stem} {n}{ext}"
             n += 1
         shutil.move(str(source), str(target))
-        print(f"archived {source.name} -> archive/{target.name}")
+        print(f"trashed {source.name} -> ~/.Trash/{target.name}")
     return status
 
 
@@ -278,12 +306,12 @@ def main(argv):
     parser.add_argument("root", nargs="?", help="repo root (its name and git remote name are searched)")
     parser.add_argument("--name", action="append", help="another name to search (no-repo slug, former name)")
     parser.add_argument("--json", action="store_true")
-    parser.add_argument("--archive", nargs="+", metavar="ENTRY", help="move entries into archive/")
+    parser.add_argument("--trash", nargs="+", metavar="ENTRY", help="move entries to the macOS Trash")
     parser.add_argument("--handoffs-dir", default=str(HANDOFFS))
     parser.add_argument("--transcripts-dir", default=str(TRANSCRIPTS))
     args = parser.parse_args(argv[1:])
-    if args.archive:
-        return archive(args)
+    if args.trash:
+        return trash(args)
     return list_handoffs(args)
 
 
