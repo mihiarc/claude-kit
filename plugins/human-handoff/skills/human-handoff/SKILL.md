@@ -1,9 +1,9 @@
 ---
 name: human-handoff
-description: Hand finished work to a human collaborator who likely has no AI assistant: read the whole exchange so the note adds only what is new, size the handoff to the need (a note alone, one self-explaining file, a few files, a zip, a link), check it the way they will open it, and draft the covering note in the user's voice. The user reads the full note and every readme in chat before any Gmail or Slack draft exists; Claude sends only on the user's explicit word. Use whenever the user wants to send, share, deliver, export or hand off results, files, data, a review or a decision request to a named person, e.g. "send Jeff the displacement series", "package this for Shannon", "get the export ready for my co-author", "draft the email with the results attached", "zip this up for the client", even when they ask only for the email or only for the files. Not for a kickoff prompt to a new Claude session (`handoff`), a published web page (Artifact), or reviewing a drop someone sent the user.
+description: Hand finished work to a human collaborator who likely has no AI assistant: read the whole exchange so the note adds only what is new, size the handoff to the need (a note alone, one self-explaining file, a few files, a zip, a link), check it the way they will open it, and draft the covering note in the user's voice. The note goes straight into a Gmail or Slack draft for the user to read and edit there, every readme is shown in chat, and Claude sends only on the user's explicit word after they have read the final draft. Use whenever the user wants to send, share, deliver, export or hand off results, files, data, a review or a decision request to a named person, e.g. "send Jeff the displacement series", "package this for Shannon", "get the export ready for my co-author", "draft the email with the results attached", "zip this up for the client", even when they ask only for the email or only for the files. Not for a kickoff prompt to a new Claude session (`handoff`), a published web page (Artifact), or reviewing a drop someone sent the user.
 metadata:
   author: mihiarc
-  version: "2.5"
+  version: "2.8"
 ---
 
 # human-handoff
@@ -14,9 +14,11 @@ everything:
 - **Assume the recipient has no AI assistant.** Every file is something they open and make
   sense of by hand, and every repeated paragraph is something they reread. So send the fewest
   files that carry the work, and say only what they don't already know.
-- **The user reads every note before it exists in their account.** A message from their
-  account is theirs alone to answer for, so they have to know every word. By default the user
-  sends. Claude sends only when the user, having read the final text, says to (step 5).
+- **The user reads every note before it leaves their account.** A message from their account is
+  theirs alone to answer for, so they have to know every word. Claude puts the note straight
+  into a Gmail or Slack draft, where the user reads and edits it; a draft sends nothing. By
+  default the user sends. Claude sends only when the user, having read the final draft, says to
+  (step 5).
 
 The sibling skill `handoff` writes a kickoff prompt for a new Claude session. That reader shares
 your tools; this one shares nothing.
@@ -55,8 +57,8 @@ checksum and no tooling.
 placeholders, the data vintages, and any licence or redistribution limit.
 
 **The user answers for every word that travels.** A readme is part of the message: a readme
-sheet, a README.txt, a dictionary table's descriptions, a document's cover page. The user reads
-each one in chat, verbatim, just as they read the note (step 5). Any other prose in the files that
+sheet, a README.txt, a dictionary table's descriptions, a document's cover page. It travels inside
+a file the draft can't show, so the user reads each one in chat, verbatim (step 5). Any other prose in the files that
 the user won't personally review, such as a generated methods write-up or a long document, says
 plainly that Claude wrote it. That statement sits where the reader meets the prose (a document's
 first page, the top of a sheet) and invites the recipient to scrutinize those parts. The note
@@ -144,7 +146,7 @@ rerun. A one-off can be built ad hoc.
 - **Document for review:** Word with tracked changes, or the format they edit in.
 - **Prose Claude wrote:** every readme goes to the user verbatim in step 5. A document or section
   the user won't review line by line opens with a plain authorship line, for example: "Claude (an
-  AI assistant) wrote this text from the pipeline output. Chris has not reviewed it line by line,
+  AI assistant) wrote this text from the pipeline output. <First name> has not reviewed it line by line,
   so please scrutinize it and check any number against the workbook."
 
 In a zip, `README.txt` is plain text and short. It names the entry point first, then gives each
@@ -192,6 +194,7 @@ Channel: Gmail reply | Slack DM <name> | new email
 Thread:  "<subject>" (<thread id>), replying to <message id> from <sender>
 To: <addresses>   Cc: <addresses>
 Attach:  <file> (<MB>), attach by hand      | Link: <url>, sharing checked
+Draft:   <viewUrl>
 Status:  Not sent. <User> sends.
 ```
 
@@ -271,21 +274,30 @@ wherever this summary differs:
 - one consolidated ask (numbered questions for a reviewer, a now-or-later split if there are
   several).
 
-**Show it before any draft exists.** Put the complete note in chat, verbatim, exactly as it would
-go: channel, To, Cc, subject, attachments or links, and the full body, with the same blank lines
-it will have in the email. Never a summary, and never only a path.
+**Put the note straight into a draft.** The user reads and edits it there, where it will send
+from, so don't paste the note into chat first. As soon as the note is written, create the draft
+(steps below). Give the user:
+- its `viewUrl`;
+- the channel, recipients and the files to attach;
+- a short list of the calls you made that they may want to change: a fact you put in or left
+  out, a caveat's wording, the sign-off.
 
-Show every readme the same way, verbatim as the recipient will see it: the readme sheet's rows,
-the README.txt, a dictionary table's descriptions. For any other Claude-written prose the user
-won't review, show the authorship line and where it sits. Then stop and wait for the user to read
-it all. They may edit it, ask for changes, or say to create the draft (or to send it). The
-go-ahead covers the note and the readmes together. If a readme changes afterwards, show it again.
+Copy the final body into `note.md` as the record.
 
-Create the Gmail or Slack draft only after that go-ahead, and with exactly the text they
-approved. If anything changes afterwards, whether their edits or a fix you make, show the new
-version before the draft is created or updated.
+**Readmes still go to chat.** A readme travels inside a file the draft can't show. So show every
+readme verbatim, as the recipient will see it: the readme sheet's rows, the README.txt, a
+dictionary table's descriptions. For any other Claude-written prose the user won't review, show
+the authorship line and where it sits. The user reads these before attaching the files. If a
+readme changes, show it again.
 
-**Gmail** (after the go-ahead):
+**Once the draft exists, it's the user's.** They may have edited it in Gmail or Slack. Before
+changing a draft, read it back (`get_draft`), keep their edits, and tell them what you changed.
+Never overwrite a draft with your earlier text. To change a Gmail reply draft, `create_draft` a new
+one (same `replyToMessageId`, the merged text) and `delete_draft` the old: `update_draft` moves a
+reply draft to a new thread. `create_draft` also wraps every link in a google.com redirect, so
+check any link the note depends on in the draft itself.
+
+**Gmail:**
 1. Reply to the latest message in the thread. Copy To and Cc from the thread; never type an
    address from memory.
 2. Reuse the latest message's subject verbatim. It already carries `Re:` and any gateway tag such
@@ -296,7 +308,7 @@ version before the draft is created or updated.
    label. Keep it to simple HTML (`<p>`, `<ol>`,
    `<ul>`, a `<table>` with a header row) and keep the plain-text version as `body`. Tell the user
    to check the rendering in the draft.
-4. Stop at the draft unless the user, having read the final text, explicitly says to send.
+4. Stop at the draft unless the user, having read the final draft, explicitly says to send.
    Then send that exact draft:
    - check its sender, recipients and thread with `get_draft` in `METADATA_ONLY`;
    - send it with `send_message` and its `draftId`, so what goes out is what they approved.
@@ -308,8 +320,9 @@ version before the draft is created or updated.
    `Attach:` line says which one.
 6. Give the user the draft's `viewUrl`, so they can reread it where it will send from.
 
-**Slack:** `slack_send_message_draft` in the right DM or channel, after the go-ahead. The user
-sends it and uploads any file in Slack; never `slack_send_message` or scheduling.
+**Slack:** `slack_send_message_draft` in the right DM or channel, as soon as the note is
+written. The user reads and edits it there, sends it and uploads any file in Slack; never
+`slack_send_message` or scheduling.
 
 **Box, Drive and shared folders:** uploading there publishes the files, so the user uploads, and
 the note names the folder and the file. Listing the folder read-only to check for earlier drops
@@ -321,6 +334,10 @@ Give the user:
 - what goes out (the file or zip, its path and size, and the channels it fits);
 - the draft link, or the sent message's ID if they asked Claude to send;
 - what's left for them: attach, reread, send.
+
+When the user attaches or uploads files by hand (Gmail, Slack, Box), open the folder that holds
+them in Finder as the last step (`open <folder>`), so they can drag the files straight in. For a
+zip or one file, open its folder; don't open the file.
 
 Record the handoff where the project tracks such things, such as a memory entry: what went,
 where it sits, the ask, and whether it has gone out. If the repo keeps superseded
