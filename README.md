@@ -22,8 +22,10 @@ Skills installed from a plugin are namespaced, so the handoff skill runs as `/ha
 | [ec2-spinup](plugins/ec2-spinup) | skill | Starts a small, tagged, self-terminating EC2 worker in a chosen region, with instance-profile auth and IP-restricted SSH. |
 | [handoff](plugins/handoff) | skill | Writes a kickoff prompt so a new Claude session inherits this one's goal, sources, settled decisions and risks. |
 | [human-handoff](plugins/human-handoff) | skill | Packages finished work for a human collaborator and drafts the covering note; sends only on your word. |
+| [papercuts](plugins/papercuts) | skill + hook | A sweep skill that triages a papercut log into gotchas, repo PRs you pick and open decisions, and a hook that hands a session the one gotcha line its command or error needs. |
 | [residue-sweep](plugins/residue-sweep) | skill | Removes development residue (history-narrating comments, stale names, dead code, doc drift) without changing behavior. |
 | [speaker-prep](plugins/speaker-prep) | skill | Turns a deck or brief into talking points or a timed script, with print-ready PDFs. |
+| [visual-inventory](plugins/visual-inventory) | skill | Report pages read at a glance: an items × checks grid on a fixed five-status scale, findings by kind, the top five and per-item detail, rendered from one JSON file into one self-contained HTML page. [Example](plugins/visual-inventory/skills/visual-inventory/assets/example.html). |
 
 Several skills read your own `CLAUDE.md` for specifics such as where files live, what is confidential, and how to tag cloud resources, so they work best when those are written down.
 
