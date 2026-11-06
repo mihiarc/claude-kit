@@ -348,5 +348,5 @@ drops in `archive/circulated/`, move the previous one there.
 - A kickoff prompt for a new Claude session: `handoff`.
 - A web page or report to publish: the Artifact tool.
 - Reviewing a drop someone sent the user: follow the repo's own conventions (for example,
-  checksum the drop and write a `docs/handoff_review_*.md`).
+  checksum the drop and stage it with its `SHA256SUMS.txt`).
 - Sending without the user's explicit go-ahead on the final text.
