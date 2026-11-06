@@ -1,6 +1,6 @@
 {
   "name": "handoff",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Writes a kickoff prompt so a new Claude session inherits this one's goal, sources, settled decisions and risks.",
   "author": {
     "name": "Chris Mihiar",
