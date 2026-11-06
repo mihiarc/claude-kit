@@ -57,6 +57,11 @@
       "name": "papercuts",
       "source": "./plugins/papercuts",
       "description": "A papercut log that pays off: a sweep skill that triages it into gotchas, repo PRs you pick and open decisions, and a hook that hands a session the one gotcha line its command or error needs."
+    },
+    {
+      "name": "visual-inventory",
+      "source": "./plugins/visual-inventory",
+      "description": "Report pages read at a glance: an items × checks grid on a fixed five-status scale, findings by kind, the top five and per-item detail, rendered from one JSON file into one self-contained HTML page."
     }
   ]
 }
