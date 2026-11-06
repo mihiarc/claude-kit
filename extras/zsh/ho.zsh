@@ -9,7 +9,7 @@ ho() {
   local a
   for a in "$@"; do
     case $a in
-      --window|--bg|--next|--relaunch|--dry-run|-h|--help) python3 "$_HO_PY" "$@"; return ;;
+      --window|--bg|--next|--relaunch|--detach|--runs|--dry-run|-h|--help) python3 "$_HO_PY" "$@"; return ;;
     esac
   done
   local cmd

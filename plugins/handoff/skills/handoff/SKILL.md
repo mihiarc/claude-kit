@@ -3,7 +3,7 @@ name: handoff
 description: Write a self-contained kickoff prompt so a NEW session inherits this session's frame (goal, sources, assets, settled decisions, deliverables, biggest risk), saved to ~/.claude/handoffs/<repo>.md and started with `ho`. Use when the context hook says to hand off, and for "write a prompt for a new session", "hand off to the next session", "kickoff prompt for <task>", "session handoff".
 metadata:
   author: mihiarc
-  version: "4.0"
+  version: "4.1"
 ---
 
 # handoff
@@ -105,6 +105,12 @@ yourself. Either way, **verify every path and section number you cite** (Step 6)
 7. **The state you're leaving the workspace in** — uncommitted files, branch, pushed or not,
    anything half-finished. Work only on an unmerged branch is load-bearing: a session starting
    from `main` will rebuild it. Check, don't assume.
+8. **Live runs.** `python3 "${CLAUDE_SKILL_DIR}/scripts/ho.py" --runs` lists this session's
+   detached runs. Put every running one in Where things stand with its watch line, so the next
+   session re-arms the watcher. Long work still under this session's Bash tool dies when the
+   session exits: relaunch it with `ho.py --detach --name <run> -- <cmd>` first (stop the old
+   copy; resume where the tool can). If the next session will start long work, the prompt tells
+   it to launch anything expected to run past ~10 minutes the same way.
 
 **Thin projects** (a punchlist and a pile of files): walk a stale tracking doc's items to closure
 (done / open / blocked on someone) instead of declaring it historical, drop empty sections, and
@@ -190,6 +196,8 @@ lives in the Caveat section below; this is just so it can't be missed.>
   here, say so — starting from the base branch would rebuild it.>
 - Uncommitted: <files, and whether they're intentional>
 - Half-finished: <anything mid-edit, or a known-failing test and why>
+- Run <name> (from `ho --runs`): running since <time>, log <path>. Re-arm its watcher with the
+  Bash tool in the background: `<its watch line>`
 
 == Decisions to settle WITH ME before heavy implementation ==
 1. <decision>: <options>. I lean <X> because <why>; confirm.
@@ -272,7 +280,10 @@ three calls below plus the write.
    - **Next session in this window** (the usual case):
      `python3 "${CLAUDE_SKILL_DIR}/scripts/ho.py" --next <name>`. It prints what happens: this
      session exits when the turn ends and the next starts in the same window, or the user types
-     `/clear` or `/exit`, or (when the shell doesn't load `ho.zsh`) the command to run.
+     `/clear` or `/exit`, or (when the shell doesn't load `ho.zsh`) the command to run. It
+     refuses, naming the process, while this session's Bash tool runs long work (over 10
+     minutes, watchers aside): relaunch it with `--detach` (Step 2, item 8) and run `--next`
+     again, or pass `--force` when that work may die.
    - **This session keeps running**, or the user starts it later: tell them `ho <name>` (any
      terminal) or `ho --window <name>`.
    - **You report to a coordinator:** send it the handoff's path; it runs `ho --relaunch <name>`.
@@ -291,6 +302,7 @@ three calls below plus the write.
   launch status and per-entry hints; `--trash` moves entries to the Trash.
 - `scripts/check_refs.py` — Step 6.3: checks every path the prompt cites.
 - `scripts/ho.py` — Step 6.4: starts the next session from the handoff, queues it to follow this
-  one (`--next`), replaces a live one (`--relaunch`), and as a hook watches context size and
-  exits a session that has handed off. `--help` lists the modes and the hook setup; the shell
+  one (`--next`), replaces a live one (`--relaunch`), runs long work outside the session
+  (`--detach`) and lists it (`--runs`), and as a hook watches context size, names work that
+  would die on exit, and exits a session that has handed off. `--help` lists the modes and the hook setup; the shell
   side is claude-kit's `extras/zsh/ho.zsh`.
