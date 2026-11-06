@@ -179,6 +179,43 @@ class Next(Fixture):
         self.assertIn("Exiting kills this session's long work: pid 201", out)
 
 
+class Relaunch(Fixture):
+    """--relaunch checks the session it would stop (claude pid 100), not the caller's."""
+
+    def run_relaunch(self, extra=(), work=True):
+        # every shell of the target counts, so the fixture's "caller" shell (600) is long work too
+        t = table() if work else {k: v for k, v in table().items() if k not in (200, 201, 202, 500, 501, 600, 601)}
+        holder = [{"name": "lane", "pid": CLAUDE, "cwd": str(self.dir)}]
+        with mock.patch.object(ho, "proc_table", lambda: t), \
+                mock.patch.object(ho, "lineage", lambda tb, pid: set()), \
+                mock.patch.object(ho, "holders", lambda stem: holder), \
+                mock.patch.object(ho, "alive", lambda pid: True), \
+                mock.patch.object(ho, "ps", lambda pid: (50, "zsh")), \
+                mock.patch.object(ho, "has_shell_hook", lambda pid: True), \
+                mock.patch.object(ho.os, "kill") as kill:
+            code, out, err = self.run_main(["--relaunch", "lane", *extra])
+        return code, out, err, kill
+
+    def test_refuses_while_target_has_long_work(self):
+        code, out, err, kill = self.run_relaunch()
+        self.assertEqual(code, 1)
+        self.assertIn("not relaunched", err)
+        self.assertIn("pid 201", err)
+        self.assertIn("--force", err)
+        kill.assert_not_called()
+        self.assertFalse((self.dir / ".next").exists())
+
+    def test_watchers_alone_do_not_block(self):
+        code, out, _, kill = self.run_relaunch(work=False)
+        self.assertEqual(code, 0)
+        kill.assert_called_once_with(CLAUDE, ho.signal.SIGTERM)
+
+    def test_force_relaunches_anyway(self):
+        code, out, _, kill = self.run_relaunch(["--force"])
+        self.assertEqual(code, 0)
+        kill.assert_called_once_with(CLAUDE, ho.signal.SIGTERM)
+
+
 class Detach(unittest.TestCase):
     """A real detached run, through the command line."""
 

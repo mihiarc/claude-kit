@@ -287,6 +287,8 @@ three calls below plus the write.
    - **This session keeps running**, or the user starts it later: tell them `ho <name>` (any
      terminal) or `ho --window <name>`.
    - **You report to a coordinator:** send it the handoff's path; it runs `ho --relaunch <name>`.
+     `--relaunch` makes the same long-work check on the session it stops, so a peer's long run
+     blocks it too until that session `--detach`es the run; `--force` stops it anyway.
 
    Then give the user the path, a short summary of what the prompt decides and flags, and one line
    on what you trashed or kept. Don't print the prompt: the next session reads the file.
