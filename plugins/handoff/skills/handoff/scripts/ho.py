@@ -44,7 +44,9 @@ Code under another identity); it gets the same arguments.
                          the handoff. A background holder is stopped and relaunched in the
                          background; an interactive one gets SIGTERM, and its own window
                          starts the next session. With no holder, it starts one (--bg if
-                         also given, else --window).
+                         also given, else --window). Like --next, it refuses while the
+                         session it would stop has long work (see --next), naming the
+                         process; pass --force to stop it anyway.
   ho --pending <pid>     zsh precmd: print the command for a handoff queued for shell <pid>
   ho --on-clear          SessionStart hook (matcher "clear"): emit the queued prompt as context
   ho --hook              UserPromptSubmit and Stop hook: watch the session's context. Past
@@ -306,14 +308,15 @@ def long_runs(table, cpid, min_age, skip=()):
     return work, watchers
 
 
-def at_risk(cpid):
-    """long_runs for this session, leaving out the shell this process runs in."""
+def at_risk(cpid, skip=None):
+    """long_runs for session cpid; by default leaves out the shell this process runs in (the caller's
+    own session). Pass skip=() for another session, whose shells are all at risk."""
     try:
         min_age = 60 * float(os.environ.get("HO_LONG_RUN_MINUTES", 10))
     except ValueError:
         min_age = 600
     table = proc_table()
-    return long_runs(table, cpid, min_age, lineage(table, os.getpid()))
+    return long_runs(table, cpid, min_age, lineage(table, os.getpid()) if skip is None else skip)
 
 
 def fmt_age(secs):
@@ -660,6 +663,14 @@ def main(argv):
         live = holders(h["stem"])
         bg = [a for a in live if a.get("id")]
         inter = [a for a in live if not a.get("id") and a.get("pid")]
+        # the same check as --next, on the session about to be stopped, not on this one
+        work = [] if "--force" in flags else [w for a in live if a.get("pid") and alive(a["pid"])
+                                              for w in at_risk(int(a["pid"]), ())[0]]
+        if work:
+            die(f"not relaunched: {h['stem']} is running long work that would die when it is stopped: "
+                f"{named(work)}. Have that session relaunch it with `{detach_how()}` first (or wait for it "
+                f"to finish), then run `ho --relaunch {h['stem']}` again; or pass --force to let it die. "
+                f"Watchers (sleep / kill -0 loops) don't block.")
         if inter:
             pid = int(inter[0]["pid"])
             shell, comm = ps(pid)
