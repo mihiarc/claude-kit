@@ -1,6 +1,6 @@
 # claude-kit
 
-claude-kit keeps your [Claude Code](https://code.claude.com) setup current and makes it shareable. Claude Code, claude.ai and the Claude platform change quickly, and so do the best ways to use them, so a setup kept by hand falls behind and stays on one computer. The kit writes the setup down as files: shared working rules, cautious default settings and skills, which one installer applies to `~/.claude`. To stay current, you pull the kit and rerun the installer. To share it, the general part is this public kit, which anyone can install, and your own rules and settings live in a personal layer that the installer never overwrites and that you can keep in a private repo and carry to another computer.
+claude-kit keeps your [Claude Code](https://code.claude.com) setup current and makes it shareable. Claude Code, claude.ai and the Claude platform change quickly, and so do the best ways to use them, so a setup kept by hand falls behind and stays on one computer. The kit writes the setup down as files: shared working rules, cautious default settings and skills, which one installer applies to `~/.claude`. To stay current, you pull the kit and rerun the installer. To share it, the general part is this public kit, which anyone can install, and your own rules and settings live in a personal layer that the setup never changes without your approval and that you can keep in a private repo and carry to another computer. Every feature the kit ships must add value beyond what Claude Code does out of the box.
 
 Claude Code is the version of Claude that works with the files on your computer. The kit gives Claude a short set of working rules, cautious default settings, and skills for starting tasks, keeping one session as your chief of staff, checking changes before they ship, and logging what slows you down. It works whether or not you keep your work in git, and you can set it up without opening a terminal.
 
@@ -90,7 +90,7 @@ flowchart LR
     cm["CLAUDE.md<br/>two imports"]
     st["settings.json<br/>rebuilt every run"]
     sk["skills/*<br/>links"]
-    got["gotchas.md<br/>created once"]
+    got["gotchas file<br/>created once"]
   end
   inst -- writes --> cm
   inst -- rebuilds --> st
