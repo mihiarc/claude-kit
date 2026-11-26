@@ -1,0 +1,41 @@
+# claude-kit profile: what install.sh sets up for one person on this machine.
+# One `key = value` per line. A # at the start of a line, or after a space, starts a
+# comment; quote a value that holds " #". A key left out, or commented out, takes the
+# default shown. ~ and $HOME expand, and a relative path is
+# taken from this file's folder. Rerun install.sh after a change.
+
+# The kit's folder. install.sh only checks that it is the kit it runs from.
+# kit = ~/src/claude-kit
+
+# Your personal layer: a folder for your own CLAUDE.md, your settings overrides and this
+# profile. Keep it in a private repo if you use more than one machine.
+# me = ~/.claude/me
+
+# The kit plugins whose skills are linked into ~/.claude/skills, separated by spaces,
+# or `all`. Taking a plugin out removes its links on the next run.
+# plugins = start-task chief-of-staff verify-setup papercuts
+
+# zsh, bash or none. Defaults to your login shell ($SHELL).
+# shell = zsh
+
+# A shell file of your own, sourced from your shell's rc file after the kit's.
+# shell_file = ~/.claude/me/shell.zsh
+
+# Settings merged over the kit's base settings (starter/settings.json). Defaults to
+# settings.overrides.json in your personal layer, when there is one. Lists are added
+# together, other values replace the base's, and null removes a base key, except the
+# base's permission rules and hooks, which can't be removed. installer/README.md has the
+# rules. __KIT__, __ME__ and __HOME__ in it are replaced by those folders.
+# settings = ~/.claude/me/settings.overrides.json
+
+# The gotchas file the gotcha hook reads. Created from the kit's empty starter if missing.
+# gotchas = ~/.claude/gotchas.md
+
+# Your papercut log, created if missing. No default: the kit's core asks you where before
+# making one, so name the same file in your own CLAUDE.md.
+# papercuts = ~/.claude/me/papercuts.md
+
+# Repos to clone: a list file with one `<owner/repo> [path]` per line, and the folder
+# the paths are under. Skipped with --skip-repos.
+# repos_dir = ~/src
+# repos = repos.txt

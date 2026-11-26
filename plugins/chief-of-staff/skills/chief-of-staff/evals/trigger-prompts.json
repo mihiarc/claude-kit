@@ -1,0 +1,18 @@
+[
+  {
+    "query": "morning. start the day as chief of staff: what's waiting on me across the projects?",
+    "should_trigger": true
+  },
+  {
+    "query": "131 go, 132 b. and spin up a background session on the export retry bug, it should report back to you",
+    "should_trigger": true
+  },
+  {
+    "query": "set up a fresh worktree and progress record for the CSV export task, I'll launch it myself",
+    "should_trigger": false
+  },
+  {
+    "query": "the cover-letter session says the letter is done and it has no repo. wrap it up",
+    "should_trigger": true
+  }
+]

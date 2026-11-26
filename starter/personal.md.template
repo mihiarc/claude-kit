@@ -1,0 +1,26 @@
+<!-- Your own CLAUDE.md. It lives in your personal layer (~/.claude/me/CLAUDE.md by default), and ~/.claude/CLAUDE.md imports it after the kit's core. The core's rules mean ~/.claude/CLAUDE.md and the files it imports, this one included, when they say "my CLAUDE.md", and several kit skills read the specifics named here. Fill in each section, delete the ones you don't need, and delete these comments when you're done; Claude Code drops HTML comments before Claude reads the file. -->
+
+<!-- One or two sentences: who you are, what you work on, and what this machine is for (personal, work, or both), including anything that must never be kept on it. -->
+
+## Where things live
+<!-- Paths Claude and the kit's skills look for. Give real paths; leave out any you don't use. -->
+- Repos: `<folder that holds your repos>`, under the GitHub owners or orgs `<owner>`, `<org>`.
+- Papercut log: `<path to papercuts.md>`. The papercut-sweep skill reads its entries.
+- Gotchas file: `~/.claude/gotchas.md`, the hook's default. To keep it elsewhere, such as in a private repo that syncs it between machines, give that path here and set `GOTCHAS_FILE` to it in the `env` block of `~/.claude/settings.json`.
+- Documents for me to read: `<a hosted doc tool, or a local folder>`.
+
+## What stays private
+<!-- Clients, datasets, folders or repos whose content never goes to GitHub, a hosted page or a cloud session, and what to do instead (for example, write a local file and say why). -->
+- `<name>`: `<the rule>`.
+
+## Sessions
+<!-- How you launch sessions: the session-names wrapper from the kit's extras sourced from your shell, a chief-of-staff launcher, where its questions file lives, and the app you open it in. -->
+- `<launcher, and what it does>`.
+
+## Drafting in my voice (emails, Slack, replies)
+<!-- The human-handoff skill follows these rules when it drafts a note for you. Cover length, how to open, where the ask goes, list style, greeting and sign-off, and what to leave out. -->
+- `<rule>`.
+
+## Writing documents (memos, reports)
+<!-- Optional: how longer documents should read (structure, tone, hedging, vocabulary). -->
+- `<rule>`.

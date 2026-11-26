@@ -1,0 +1,7 @@
+# claude-kit
+
+This repo is public. Skills here are written for anyone: no employer, client or colleague names, no personal paths or account IDs. Specifics a skill needs, such as where files live, what is confidential, or how cloud resources are tagged, belong in the user's own CLAUDE.md, and the skill tells Claude to read them from there.
+
+A pre-commit and a pre-push hook in `scripts/hooks/` run `scripts/check-private-terms.sh` against `info/private-terms` in the repo's common git dir (`.git/info/private-terms` in the main checkout, shared by its worktrees), a local list of the terms that must never appear here, which git never pushes: one extended regex per line, case-insensitive, with `#` for comments. A fresh clone has neither the list nor the hooks turned on. Before the first commit, write the list (your own CLAUDE.md says where yours is kept), then run `git config core.hooksPath "$PWD/scripts/hooks"` once from the main checkout. The full path keeps the hooks running on branches and worktrees that lack the folder. With the hooks on and no terms in the list, every commit and push is refused. When the check blocks, generalize the text; don't edit the list to get a commit through.
+
+Each plugin under `plugins/` has its own `.claude-plugin/plugin.json`, and `.claude-plugin/marketplace.json` lists them all. Check changes with `claude plugin validate .` and `claude plugin validate plugins/<name>`. A plugin with a `tests/` folder runs its tests with `python3 -m unittest discover plugins/<name>/tests`.

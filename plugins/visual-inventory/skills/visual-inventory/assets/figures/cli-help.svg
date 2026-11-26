@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 222" width="640" height="222" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+  <rect width="640" height="222" rx="8" fill="#1a1a19"/>
+  <g font-size="13" fill="#f0efec">
+    <text x="18" y="30"><tspan fill="#898781">$</tspan> fernway check --help</text>
+    <text x="18" y="56">Usage: fernway check [OPTIONS] PATH</text>
+    <text x="34" y="82" fill="#c3c2b7">Validate the files at PATH against the active rules.</text>
+    <text x="18" y="108">Options:</text>
+    <text x="34" y="130">--lenient</text>
+    <text x="34" y="152">--rules FILE</text>
+    <text x="34" y="174">--format TEXT</text>
+    <text x="34" y="196">--help</text>
+    <text x="160" y="130">Report rule failures as warnings.</text>
+    <text x="160" y="152">Use the rules in FILE.</text>
+    <text x="160" y="174">Output as text, json or junit.</text>
+    <text x="160" y="196">Show this message and exit.</text>
+  </g>
+</svg>

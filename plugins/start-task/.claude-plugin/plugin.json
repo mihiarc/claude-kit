@@ -1,0 +1,11 @@
+{
+  "name": "start-task",
+  "version": "0.5.0",
+  "description": "Starts a task in a fresh Claude session: sizes it, settles open decisions with you, and writes its opening progress record (goal, what is settled, the checks that define done, what is out of scope) where the new session loads it.",
+  "author": {
+    "name": "Chris Mihiar",
+    "url": "https://github.com/mihiarc"
+  },
+  "repository": "https://github.com/mihiarc/claude-kit",
+  "license": "MIT"
+}

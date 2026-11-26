@@ -1,0 +1,11 @@
+{
+  "name": "chief-of-staff",
+  "version": "0.6.0",
+  "description": "Runs one chief-of-staff session across all your projects: it interviews you on the questions waiting on you, settles what your recorded decisions already answer, dispatches tasks to background sessions and steers them by message.",
+  "author": {
+    "name": "Chris Mihiar",
+    "url": "https://github.com/mihiarc"
+  },
+  "repository": "https://github.com/mihiarc/claude-kit",
+  "license": "MIT"
+}

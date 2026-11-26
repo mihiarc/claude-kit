@@ -1,0 +1,28 @@
+/* Delivery (lectern) copy — see references/delivery-format.md for rationale. */
+@page {
+  size: letter;
+  /* Big bottom margin: text lives in the top two-thirds so the speaker's
+     eyes and chin stay up. */
+  margin: 0.75in 0.9in 3.3in 0.9in;
+  @top-right { content: counter(page); font-size: 22pt; font-weight: bold; color: #333; font-family: Helvetica, Arial, sans-serif; }
+  @bottom-left { content: "__HEADER__"; font-size: 8pt; color: #aaa; }
+}
+body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 17pt; line-height: 1.55; color: #111; }
+h1 { font-size: 22pt; margin: 0 0 6pt 0; color: #333; }
+h1 + p { color: #555; font-size: 12pt; margin-top: 0; }
+/* Each section starts on a fresh page: a page turn coincides with a slide advance. */
+h2 { page-break-before: always; font-size: 20pt; margin: 0 0 14pt 0; color: #333; border-bottom: 2pt solid #333; padding-bottom: 4pt; page-break-after: avoid; }
+p { margin: 0 0 13pt 0; page-break-inside: avoid; }
+ul { margin: 6pt 0 13pt 0; padding-left: 22pt; }
+li { margin: 5pt 0; page-break-inside: avoid; }
+hr { display: none; } /* section breaks are page breaks here */
+strong { color: #000; }
+em { color: #444; }
+/* Slide-advance cue box: high contrast, right-aligned, unmissable at a glance. */
+.advance {
+  text-align: right; font-weight: bold; font-size: 14pt; color: #fff;
+  background: #333; padding: 6pt 14pt; border-radius: 4pt;
+  margin: 18pt 0 0 auto; width: fit-content; page-break-inside: avoid;
+}
+/* Binds a marker to its preceding paragraph (added by build_pdfs.py). */
+.keep { page-break-inside: avoid; }

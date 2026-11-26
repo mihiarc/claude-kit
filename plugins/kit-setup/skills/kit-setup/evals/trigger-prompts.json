@@ -1,0 +1,26 @@
+[
+  {
+    "query": "I just installed the kit-setup plugin. Can you set me up? I've never used a terminal",
+    "should_trigger": true
+  },
+  {
+    "query": "set up claude-kit for me on this laptop",
+    "should_trigger": true
+  },
+  {
+    "query": "I want to turn the status line off and change where my task folders go, can you redo my setup",
+    "should_trigger": true
+  },
+  {
+    "query": "start a session on the land trust grant renewal letter, there's no repo, it's just writing",
+    "should_trigger": false
+  },
+  {
+    "query": "set up the next task: the CSV export in the parser repo, in its own worktree",
+    "should_trigger": false
+  },
+  {
+    "query": "add Bash(npm test) to the allow list in .claude/settings.json in this repo",
+    "should_trigger": false
+  }
+]

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 232" width="640" height="232" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <rect width="640" height="232" fill="#fcfcfb"/>
+  <text x="16" y="24" font-size="15" font-weight="600" fill="#0b0b0b">Rule codes in the guide that don't match the code</text>
+  <text x="16" y="43" font-size="12.5" fill="#52514e">By module, against the RULES table in fernway/rules.py</text>
+  <g stroke="#e1e0d9" stroke-width="1">
+    <line x1="160" y1="58" x2="160" y2="196"/>
+    <line x1="210" y1="58" x2="210" y2="196"/>
+    <line x1="260" y1="58" x2="260" y2="196"/>
+    <line x1="310" y1="58" x2="310" y2="196"/>
+    <line x1="360" y1="58" x2="360" y2="196"/>
+    <line x1="410" y1="58" x2="410" y2="196"/>
+  </g>
+  <line x1="110" y1="58" x2="110" y2="196" stroke="#c3c2b7" stroke-width="1"/>
+  <g font-size="13" fill="#0b0b0b" text-anchor="end">
+    <text x="100" y="80">core</text>
+    <text x="100" y="114">numeric</text>
+    <text x="100" y="148">text</text>
+    <text x="100" y="182">dates</text>
+  </g>
+  <g fill="#2a78d6">
+    <path d="M110 102 H256 Q260 102 260 106 V116 Q260 120 256 120 H110 Z"/>
+    <path d="M110 136 H256 Q260 136 260 140 V150 Q260 154 256 154 H110 Z"/>
+    <path d="M110 170 H356 Q360 170 360 174 V184 Q360 188 356 188 H110 Z"/>
+  </g>
+  <g font-size="12.5" fill="#52514e">
+    <text x="118" y="80">0 of 12</text>
+    <text x="268" y="114">3 of 9</text>
+    <text x="268" y="148">3 of 8</text>
+    <text x="368" y="182">5 of 9</text>
+  </g>
+  <g font-size="11.5" fill="#898781" text-anchor="middle">
+    <text x="110" y="214">0</text>
+    <text x="160" y="214">1</text>
+    <text x="210" y="214">2</text>
+    <text x="260" y="214">3</text>
+    <text x="310" y="214">4</text>
+    <text x="360" y="214">5</text>
+    <text x="410" y="214">6</text>
+  </g>
+</svg>

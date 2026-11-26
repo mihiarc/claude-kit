@@ -1,0 +1,11 @@
+{
+  "name": "verify-setup",
+  "version": "0.2.0",
+  "description": "Writes a repo's own verify skill (how to check a change there end to end) from the repo's real commands, running each one before writing it down.",
+  "author": {
+    "name": "Chris Mihiar",
+    "url": "https://github.com/mihiarc"
+  },
+  "repository": "https://github.com/mihiarc/claude-kit",
+  "license": "MIT"
+}

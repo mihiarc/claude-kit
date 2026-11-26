@@ -1,0 +1,4 @@
+@__KIT__/starter/core.md
+@__ME__/CLAUDE.md
+
+<!-- Your ~/.claude/CLAUDE.md. It only loads two files: the kit's shared core, then your own CLAUDE.md in your personal layer (a folder, ~/.claude/me by default, that you can keep in a private repo to sync it between machines). Put your own rules in that file, not here: the kit's install.sh rewrites this one. -->

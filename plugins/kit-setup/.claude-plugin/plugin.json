@@ -1,0 +1,11 @@
+{
+  "name": "kit-setup",
+  "version": "0.1.0",
+  "description": "Guided setup of claude-kit from inside Claude Code: interviews you, shows the CLAUDE.md and settings it would write, writes them only on your yes, backs up what it replaces, and offers the extras. Writes the same files as install.sh.",
+  "author": {
+    "name": "Chris Mihiar",
+    "url": "https://github.com/mihiarc"
+  },
+  "repository": "https://github.com/mihiarc/claude-kit",
+  "license": "MIT"
+}

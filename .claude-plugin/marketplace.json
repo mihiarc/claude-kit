@@ -1,0 +1,77 @@
+{
+  "name": "claude-kit",
+  "owner": {
+    "name": "Chris Mihiar",
+    "url": "https://github.com/mihiarc"
+  },
+  "metadata": {
+    "description": "Skills, hooks and small tools for Claude Code."
+  },
+  "plugins": [
+    {
+      "name": "kit-setup",
+      "source": "./plugins/kit-setup",
+      "description": "Guided setup of the kit from inside Claude Code: interviews you, shows the CLAUDE.md and settings it would write, writes them only on your yes, backs up what it replaces, and offers the extras. Writes the same files as install.sh."
+    },
+    {
+      "name": "stacked-pr-guard",
+      "source": "./plugins/stacked-pr-guard",
+      "description": "Blocks deleting a branch that open pull requests are based on, so GitHub doesn't close the PRs stacked on it."
+    },
+    {
+      "name": "codebase-audit",
+      "source": "./plugins/codebase-audit",
+      "description": "A full critical review of a codebase or component, with severity-rated findings checked against current best practice and filed as GitHub issues once you confirm."
+    },
+    {
+      "name": "disk-cleanup-inventory",
+      "source": "./plugins/disk-cleanup-inventory",
+      "description": "A tiered inventory of what is using disk space, delivered as a checklist worksheet; deletes only what you tick."
+    },
+    {
+      "name": "downloads-tidy",
+      "source": "./plugins/downloads-tidy",
+      "description": "Files and declutters ~/Downloads against your own filing rules and existing folders, leaving it flat."
+    },
+    {
+      "name": "chief-of-staff",
+      "source": "./plugins/chief-of-staff",
+      "description": "Runs one chief-of-staff session across all your projects: it interviews you on the questions waiting on you, settles what your recorded decisions already answer, dispatches tasks to background sessions and steers them by message."
+    },
+    {
+      "name": "start-task",
+      "source": "./plugins/start-task",
+      "description": "Starts a task in a fresh Claude session: sizes it, settles open decisions with you, and writes its opening progress record (goal, what is settled, the checks that define done, what is out of scope) where the new session loads it."
+    },
+    {
+      "name": "human-handoff",
+      "source": "./plugins/human-handoff",
+      "description": "Packages finished work for a human collaborator and drafts the covering note; sends only on your word."
+    },
+    {
+      "name": "residue-sweep",
+      "source": "./plugins/residue-sweep",
+      "description": "Removes development residue (history-narrating comments, stale names, dead code, doc drift) without changing behavior."
+    },
+    {
+      "name": "speaker-prep",
+      "source": "./plugins/speaker-prep",
+      "description": "Turns a deck or brief into talking points or a timed script, with print-ready PDFs."
+    },
+    {
+      "name": "papercuts",
+      "source": "./plugins/papercuts",
+      "description": "A papercut log that pays off: a sweep skill that triages it into gotchas, repo PRs you pick and open decisions, and a hook that hands a session the one gotcha line its command or error needs."
+    },
+    {
+      "name": "visual-inventory",
+      "source": "./plugins/visual-inventory",
+      "description": "Report pages read at a glance: an items \u00d7 checks grid on a fixed five-status scale, findings by kind, the top five and per-item detail, rendered from one JSON file into one self-contained HTML page."
+    },
+    {
+      "name": "verify-setup",
+      "source": "./plugins/verify-setup",
+      "description": "Writes a repo's own verify skill (how to check a change there end to end) from the repo's real commands, running each one before writing it down."
+    }
+  ]
+}

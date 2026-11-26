@@ -1,0 +1,22 @@
+[
+  {
+    "query": "ok the parser fix is merged. write a brief so a fresh session can pick up the CSV export next, it should run in its own worktree",
+    "should_trigger": true
+  },
+  {
+    "query": "this refactor is too big for one session. split it into tasks and give me something I can paste into new sessions for each",
+    "should_trigger": true
+  },
+  {
+    "query": "write up where the export stands for my coauthor and put it in a gmail draft, she doesn't use claude",
+    "should_trigger": false
+  },
+  {
+    "query": "set up a fresh session to draft my grant renewal letter. there's no repo for this, it's just writing",
+    "should_trigger": true
+  },
+  {
+    "query": "draft a cover letter for the land trust volunteer coordinator job, the posting is in job-ad.txt here. keep it to one page",
+    "should_trigger": false
+  }
+]

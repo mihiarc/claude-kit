@@ -1,0 +1,4 @@
+#!/bin/sh
+# Runs the check beside this folder, not the one on the current branch, so a branch or
+# worktree without scripts/hooks is still checked when core.hooksPath is a full path.
+exec "$(cd "$(dirname "$0")/.." && pwd)/check-private-terms.sh" --push "$@"

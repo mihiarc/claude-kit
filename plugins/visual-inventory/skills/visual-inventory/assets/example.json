@@ -1,0 +1,303 @@
+{
+  "title": "Fernway docs audit",
+  "lede": "Every README, changelog, API reference and guide across the Fernway repos, checked against the 3.0.2 code and release notes. Most of what's stale is one story: the docs still describe 2.x, before 3.0 renamed the package, renumbered the rules and made strict mode the default.",
+  "tiles": [
+    {"value": 5, "label": "repos and sites"},
+    {"value": 34, "label": "doc files read"},
+    {"value": 17, "label": "stale claims"},
+    {"value": 4, "label": "unverifiable"},
+    {"value": 7, "label": "files not yet read"}
+  ],
+  "statuses": {
+    "good": {"label": "current", "means": "matches the code and the release notes"},
+    "watch": {"label": "unverifiable", "means": "nothing in the repo can confirm it"},
+    "problem": {"label": "stale", "means": "contradicted by the code or the release notes"},
+    "out": {"label": "flag only", "means": "a dated record; noted, not edited"},
+    "pending": {"label": "not yet read", "means": "queued for the next pass"}
+  },
+  "headings": {
+    "grid": {"title": "Every doc, by status", "lede": "One row per repo or site, one column per kind of doc. Hover a cell for what it found; click it to jump to the detail."},
+    "kinds": {"title": "Findings by kind", "lede": "Every finding per row, split by what is wrong. The bars share one scale."},
+    "top": {"title": "The five that matter most"},
+    "details": {"title": "Detail, row by row", "lede": "Every finding, with the doc's line, what it says, and the fix written as current state."}
+  },
+  "grid": {
+    "row_header": "Repo",
+    "columns": [
+      {"id": "readme", "label": "README"},
+      {"id": "changelog", "label": "CHANGELOG"},
+      {"id": "api", "label": "API reference"},
+      {"id": "guides", "label": "Guides", "note": "one chip per guide"},
+      {"id": "signoff", "label": "Maintainer sign-off", "note": "a state, not a count"}
+    ],
+    "cell_note": "A number is how many claims in that doc are at the cell's status. Sign-off cells show where the maintainer review stands instead.",
+    "empty": "none"
+  },
+  "kinds": [
+    {"id": "wrong-number", "label": "Wrong number"},
+    {"id": "wrong-name", "label": "Wrong name or path"},
+    {"id": "superseded", "label": "Superseded behavior"},
+    {"id": "missing", "label": "Missing"},
+    {"id": "broken-link", "label": "Broken link"},
+    {"id": "other", "label": "Other", "other": true}
+  ],
+  "rows": [
+    {
+      "id": "core",
+      "label": "fernway",
+      "note": "core library",
+      "cells": {
+        "readme": {"status": "problem", "count": 3, "tip": "Old package name, old import path, old minimum Python", "link": "readme"},
+        "changelog": {"status": "out", "count": 1, "tip": "One release date is wrong; release entries are records", "link": "changelog"},
+        "api": {"status": "watch", "count": 2, "tip": "Caching and thread-safety claims have no test", "link": "api"},
+        "guides": [
+          {"label": "quickstart", "status": "good"},
+          {"label": "validation rules", "status": "problem", "count": 3, "tip": "Three rule tables use the 2.x numbering", "link": "rules"},
+          {"label": "migrating to 3.0", "status": "watch", "count": 1, "link": "migrating"}
+        ],
+        "signoff": {"status": "watch", "state": "awaiting review"}
+      },
+      "findings": {"wrong-number": 5, "wrong-name": 2, "other": 3},
+      "detail": {
+        "summary": "The README and the rules guide still describe 2.x. The changelog's one error sits in a dated entry, so it's flagged and left as written.",
+        "blocks": [
+          {
+            "id": "readme",
+            "title": "`README.md`",
+            "status": "problem",
+            "table": {
+              "columns": ["Line", "Status", "The doc says", "The fix"],
+              "rows": [
+                ["12", {"status": "problem"}, "Install with `pip install fernway-validate`.", "`pip install fernway`; the package was renamed in 2.0."],
+                ["15", {"status": "problem"}, "Requires Python 3.8 or later.", "Python 3.10 or later, as `pyproject.toml` requires."],
+                ["31", {"status": "problem"}, "`from fernway.validate import check`", "`from fernway import check`; 3.0 folded the submodule into the package."]
+              ]
+            }
+          },
+          {
+            "id": "rules",
+            "title": "Guide: validation rules",
+            "status": "problem",
+            "image": {"src": "figures/rule-codes.svg", "alt": "Bar chart of rule codes in the guide that don't match the code: core 0 of 12, numeric 3 of 9, text 3 of 8, dates 5 of 9.", "caption": "Codes per module that differ from `RULES` in `fernway/rules.py`."},
+            "story": "Three of the guide's four rule tables use the 2.x numbering. The dates module moved the most: five of its nine codes changed when 3.0 split date rules from time rules. The core table is still right."
+          },
+          {
+            "id": "api",
+            "title": "API reference",
+            "status": "watch",
+            "story": "Two claims can't be checked from the code or the release notes: that `Schema.compile` caches its result, and that `check` is thread-safe. Neither has a test behind it."
+          },
+          {
+            "id": "migrating",
+            "title": "Guide: migrating to 3.0",
+            "status": "watch",
+            "story": "It promises that 2.x config files load unchanged. No test loads a 2.x config, so the promise can't be confirmed either way."
+          },
+          {
+            "id": "changelog",
+            "title": "`CHANGELOG.md`",
+            "status": "out",
+            "story": "The 2.4.0 entry is dated 2023-03-14, a week before its tag. Release entries are records, so this is flagged and not edited."
+          }
+        ]
+      }
+    },
+    {
+      "id": "cli",
+      "label": "fernway-cli",
+      "note": "command line",
+      "cells": {
+        "readme": {"status": "good"},
+        "changelog": {"status": "good"},
+        "api": {"status": "problem", "count": 2, "tip": "Documents --strict and the removed lint command", "link": "commands"},
+        "guides": [
+          {"label": "shell completion", "status": "problem", "count": 1, "link": "completion"}
+        ],
+        "signoff": {"status": "good", "state": "signed Oct 30"}
+      },
+      "findings": {"superseded": 2, "wrong-name": 1},
+      "detail": {
+        "summary": "The command reference predates 3.0's switch to strict mode by default.",
+        "blocks": [
+          {
+            "id": "commands",
+            "title": "Command reference",
+            "status": "problem",
+            "image": {"src": "figures/cli-help.svg", "alt": "Terminal output of fernway check --help listing --lenient, --rules, --format and --help, with no --strict option.", "caption": "`fernway check --help` at 3.0.2. The option list has no `--strict`.", "embed": true},
+            "story": "The reference still documents the 2.x flags. At 3.0 strict mode became the default, `--lenient` replaced `--strict`, and `lint` folded into `check`.",
+            "table": {
+              "columns": ["Line", "Status", "The doc says", "The fix"],
+              "rows": [
+                ["48", {"status": "problem"}, "Pass `--strict` to fail on any rule error.", "Strict is the default; pass `--lenient` to report failures as warnings."],
+                ["70", {"status": "problem"}, "Run `fernway lint PATH`.", "`fernway check PATH`; 3.0 removed `lint`."]
+              ]
+            }
+          },
+          {
+            "id": "completion",
+            "title": "Guide: shell completion",
+            "status": "problem",
+            "story": "It installs completion with `fernway completion install`, which 3.0 replaced with the standard `--install-completion` option."
+          }
+        ]
+      }
+    },
+    {
+      "id": "schemas",
+      "label": "fernway-schemas",
+      "note": "shared JSON schemas",
+      "cells": {
+        "readme": {"status": "watch", "count": 1, "tip": "The draft 2020-12 claim has no test", "link": "readme"},
+        "changelog": {"status": "out", "tip": "Release entries are records"},
+        "api": {"status": "good"},
+        "guides": [],
+        "signoff": {"status": "pending", "state": "not asked"}
+      },
+      "findings": {"other": 1},
+      "detail": {
+        "summary": "Current, apart from one claim nothing in the repo can confirm.",
+        "blocks": [
+          {
+            "id": "readme",
+            "title": "`README.md`",
+            "status": "watch",
+            "story": "It says the schemas validate under JSON Schema draft 2020-12. The test suite runs only draft-07, so the claim can't be checked."
+          }
+        ]
+      }
+    },
+    {
+      "id": "site",
+      "label": "docs site",
+      "note": "generated from fernway",
+      "cells": {
+        "readme": {"status": "good"},
+        "api": {"status": "problem", "count": 5, "tip": "Five pages link to the removed fernway.legacy module", "link": "api"},
+        "guides": [
+          {"label": "tutorial", "status": "problem", "count": 2, "link": "tutorial"},
+          {"label": "FAQ", "status": "pending", "link": "faq"}
+        ],
+        "signoff": {"status": "watch", "state": "awaiting review"}
+      },
+      "findings": {"broken-link": 5, "wrong-name": 1, "missing": 1},
+      "detail": {
+        "summary": "The site's API pages are generated from the docstrings in fernway, so most of its fixes land in that repo.",
+        "blocks": [
+          {
+            "id": "api",
+            "title": "API reference pages",
+            "status": "problem",
+            "table": {
+              "columns": ["Page", "Status", "Links to", "The fix"],
+              "rows": [
+                ["`api/check`", {"status": "problem"}, "`fernway.legacy.check_all`", "`fernway.compat.check_all`"],
+                ["`api/schema`", {"status": "problem"}, "`fernway.legacy.SchemaV1`", "`fernway.compat.SchemaV1`"],
+                ["`api/rules`", {"status": "problem"}, "`fernway.legacy.rule_table`", "`fernway.RULES`"],
+                ["`api/report`", {"status": "problem"}, "`fernway.legacy.to_html`", "`fernway.compat.to_html`"],
+                ["`api/config`", {"status": "problem"}, "`fernway.legacy.load_ini`", "`fernway.compat.load_ini`"]
+              ]
+            }
+          },
+          {
+            "id": "tutorial",
+            "title": "Tutorial",
+            "status": "problem",
+            "story": "Step 1 installs the old package name, and the tutorial never creates the `fernway.toml` file that step 4 reads."
+          },
+          {
+            "id": "faq",
+            "title": "FAQ",
+            "status": "pending",
+            "story": "Not read yet; it's queued for the next pass."
+          }
+        ]
+      }
+    },
+    {
+      "id": "examples",
+      "label": "examples",
+      "note": "six notebooks",
+      "cells": {
+        "readme": {"status": "problem", "count": 1, "tip": "Pins fernway<3", "link": "readme"},
+        "api": {"status": "out", "tip": "Examples have no API reference"},
+        "guides": [
+          {"label": "notebooks", "status": "pending", "count": 6, "link": "notebooks"}
+        ],
+        "signoff": {"status": "out", "state": "n/a"}
+      },
+      "findings": {"superseded": 1},
+      "detail": {
+        "summary": "The README pins an old version, and the six notebooks are still to read.",
+        "blocks": [
+          {
+            "id": "readme",
+            "title": "`README.md`",
+            "status": "problem",
+            "story": "It tells readers to install `fernway<3` before running the notebooks. The notebooks import 3.0 names, so that pin breaks every one of them."
+          },
+          {
+            "id": "notebooks",
+            "title": "Notebooks",
+            "status": "pending",
+            "story": "Six notebooks are queued for the next pass. Each is run end to end before its prose is checked."
+          }
+        ]
+      }
+    }
+  ],
+  "top": [
+    {
+      "title": "The install line names a package that no longer exists",
+      "status": "problem",
+      "kind": "wrong-name",
+      "rows": ["core", "site"],
+      "says": "Both the README and the tutorial tell new users to `pip install fernway-validate`.",
+      "evidence": "`pyproject.toml` names the package `fernway`. `fernway-validate` was last published as 1.9.4, so a new user installs a two-year-old release.",
+      "fix": "Change the install line to `pip install fernway`.",
+      "where": "Fixed in the docs PR for fernway; the site picks it up on its next build."
+    },
+    {
+      "title": "The rules guide uses the 2.x rule codes",
+      "status": "problem",
+      "kind": "wrong-number",
+      "rows": ["core"],
+      "says": "Eleven of the 38 rule codes in the validation-rules guide are the numbers rules had before 3.0.",
+      "evidence": "Compared code by code with `RULES` in `fernway/rules.py`; the dates module drifted most.",
+      "image": {"src": "figures/rule-codes.svg", "alt": "Bar chart of rule codes in the guide that don't match the code: core 0 of 12, numeric 3 of 9, text 3 of 8, dates 5 of 9."},
+      "fix": "Regenerate the three stale tables from `RULES`, and add a docs check that fails when they drift.",
+      "where": "Fixed in the docs PR for fernway; the drift check is a separate PR."
+    },
+    {
+      "title": "Five API pages link to a removed module",
+      "status": "problem",
+      "kind": "broken-link",
+      "rows": ["site"],
+      "says": "Five API reference pages link to `fernway.legacy`, which 3.0 removed.",
+      "evidence": "Each link returns a 404 on the built site.",
+      "fix": "Point the links at `fernway.compat` and `fernway.RULES`, which replaced it.",
+      "where": "Flagged to the site maintainers. The pages come from docstrings in fernway, so the fix lands there."
+    },
+    {
+      "title": "The CLI docs still show `--strict`",
+      "status": "problem",
+      "kind": "superseded",
+      "rows": ["cli"],
+      "says": "The command reference tells users to pass `--strict` to fail on rule errors.",
+      "evidence": "3.0 made strict mode the default and replaced the flag with `--lenient`; the help output has no `--strict`.",
+      "image": {"src": "figures/cli-help.svg", "alt": "Terminal output of fernway check --help with no --strict option.", "embed": true},
+      "fix": "Say strict is the default, and document `--lenient` for warnings only.",
+      "where": "Fixed in the docs PR for fernway-cli."
+    },
+    {
+      "title": "The migration guide promises 2.x configs load unchanged",
+      "status": "watch",
+      "kind": "other",
+      "rows": ["core"],
+      "says": "Upgrading needs no config changes; 2.x config files load as they are.",
+      "evidence": "No test loads a 2.x config, so nothing in the repo confirms or refutes it.",
+      "fix": "Add a test that loads the 2.x sample configs, or narrow the sentence to what has been tried.",
+      "where": "Flagged to the fernway maintainers; the docs PR leaves the sentence until a test settles it."
+    }
+  ],
+  "footer": "Fernway is a fictional library. This page is the worked example for the visual-inventory skill, rendered from `example.json`."
+}
