@@ -87,12 +87,13 @@ flowchart LR
   inst(["install.sh"])
   prof -- read by --> inst
   subgraph home["~/.claude"]
-    cm["CLAUDE.md<br/>two @imports"]
+    cm["CLAUDE.md<br/>two imports"]
     st["settings.json<br/>rebuilt every run"]
     sk["skills/*<br/>links"]
     got["gotchas.md<br/>created once"]
   end
-  inst -- builds --> home
+  inst -- writes --> cm
+  inst -- rebuilds --> st
   base -- merged --> st
   over -- merged over the base --> st
   plugins -- "linked, for the profile's plugins" --> sk
