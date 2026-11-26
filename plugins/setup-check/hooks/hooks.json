@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I \"${CLAUDE_PLUGIN_ROOT}/skills/setup-check/scripts/setup_check.py\" hook",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

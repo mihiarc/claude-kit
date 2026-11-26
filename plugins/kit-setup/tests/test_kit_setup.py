@@ -86,7 +86,8 @@ class Scratch(unittest.TestCase):
             path.append(str(Path(git).parent))
         self.env = {k: v for k, v in os.environ.items()
                     if k not in ("XDG_CONFIG_HOME", "GIT_CONFIG_GLOBAL", "ZDOTDIR", "GOTCHAS_FILE", "CLAUDECODE")}
-        self.env.update(HOME=str(self.home), SHELL="/bin/zsh", PATH=os.pathsep.join(path))
+        # SETUP_CHECK_NO_REFRESH: the setup-check hook starts no background lookup in a test HOME.
+        self.env.update(HOME=str(self.home), SHELL="/bin/zsh", PATH=os.pathsep.join(path), SETUP_CHECK_NO_REFRESH="1")
         self.n = 0
 
     def tearDown(self):

@@ -13,7 +13,7 @@
 
 # The kit plugins whose skills are linked into ~/.claude/skills, separated by spaces,
 # or `all`. Taking a plugin out removes its links on the next run.
-# plugins = start-task chief-of-staff verify-setup papercuts
+# plugins = start-task chief-of-staff verify-setup papercuts setup-check
 
 # zsh, bash or none. Defaults to your login shell ($SHELL).
 # shell = zsh

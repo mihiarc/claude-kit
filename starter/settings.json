@@ -103,6 +103,16 @@
     ],
     "SessionStart": [
       {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"__KIT__/plugins/setup-check/skills/setup-check/scripts/setup_check.py\"; [ -f \"$f\" ] || exit 0; python3 -I \"$f\" hook",
+            "timeout": 5
+          }
+        ]
+      },
+      {
         "matcher": "compact",
         "hooks": [
           {

@@ -14,6 +14,11 @@
       "description": "Guided setup of the kit from inside Claude Code: interviews you, shows the CLAUDE.md and settings it would write, writes them only on your yes, backs up what it replaces, and offers the extras. Writes the same files as install.sh."
     },
     {
+      "name": "setup-check",
+      "source": "./plugins/setup-check",
+      "description": "Tells you when your Claude Code setup has fallen behind or drifted: the CLI, your plugins and the kit against their latest versions, and what ~/.claude holds that the kit and your personal layer don't. One line at session start when something is behind; it never updates anything itself."
+    },
+    {
       "name": "stacked-pr-guard",
       "source": "./plugins/stacked-pr-guard",
       "description": "Blocks deleting a branch that open pull requests are based on, so GitHub doesn't close the PRs stacked on it."

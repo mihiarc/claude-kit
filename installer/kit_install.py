@@ -28,8 +28,9 @@ from pathlib import Path
 
 KIT = Path(__file__).resolve().parent.parent
 STARTER = KIT / "starter"
+STAMP = "kit-install.json"  # in ~/.claude: what the settings were built from, read by the setup check
 OVERRIDES = "settings.overrides.json"  # in the personal layer, unless the profile names another file
-DEFAULT_PLUGINS = ["start-task", "chief-of-staff", "verify-setup", "papercuts"]
+DEFAULT_PLUGINS = ["start-task", "chief-of-staff", "verify-setup", "papercuts", "setup-check"]
 SHELLS = ("zsh", "bash", "none")
 KEYS = ("kit", "me", "plugins", "shell", "shell_file", "settings", "gotchas", "papercuts", "repos_dir", "repos")
 GITIGNORE = ("CLAUDE.local.md", "**/.claude/settings.local.json", ".playwright-mcp/", ".claude/worktrees/")
@@ -422,6 +423,34 @@ class Installer:
                     f"Your previous settings.json is at {tilde(bak)}. These settings in it are not in the new one; "
                     f"to keep any, add them to {tilde(where)} and rerun:\n      " + "\n      ".join(lost))
 
+    def record_install(self):
+        """Record what the settings were built from, so the setup check can tell when the kit
+        has moved since. Kit-owned state: rewritten in place, never backed up."""
+        cfg, dest = self.cfg, home() / ".claude" / STAMP
+        if self.dry:
+            return  # bookkeeping, not setup: a preview doesn't list it
+        commit = dirty = None
+        if shutil.which("git"):
+            r = subprocess.run(["git", "-C", str(cfg["kit"]), "rev-parse", "HEAD"], capture_output=True, text=True)
+            if r.returncode == 0:
+                commit = r.stdout.strip()
+                r = subprocess.run(["git", "-C", str(cfg["kit"]), "status", "--porcelain", "--untracked-files=no"],
+                                   capture_output=True, text=True)
+                dirty = bool(r.stdout.strip()) if r.returncode == 0 else None
+        # A first run with no profile writes the default one, all defaults: the same settings, so name it.
+        profile = cfg["profile"] or (default_profile() if default_profile().is_file() else None)
+        text = json.dumps({"kit": str(cfg["kit"]), "commit": commit, "dirty": dirty,
+                           "profile": str(profile) if profile else None,
+                           "me": str(cfg["me"])}, indent=2) + "\n"
+        if dest.is_file() and not dest.is_symlink() and dest.read_text() == text:
+            self.say("unchanged", str(dest))
+            return
+        if not self.dry:
+            if dest.is_symlink():
+                dest.unlink()
+            dest.write_text(text)
+        self.say("wrote", str(dest))
+
     def gotchas(self):
         self.create(self.cfg["gotchas"], (STARTER / "gotchas.md").read_text())
 
@@ -500,6 +529,7 @@ class Installer:
         self.skills()
         self.claude_md()
         self.settings()
+        self.record_install()
         self.gotchas()
         self.papercuts()
         self.gitignore()
