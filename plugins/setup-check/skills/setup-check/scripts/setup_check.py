@@ -19,6 +19,7 @@ Plain code, standard library only; runs on the python3 that ships with macOS (3.
 from __future__ import annotations
 
 import datetime
+import hashlib
 import json
 import os
 import re
@@ -35,6 +36,7 @@ IGNORE = "drift-ignore.md"          # in the personal layer
 KIT_MARKETPLACE = "claude-kit"
 REFRESH_AFTER = datetime.timedelta(days=1)
 LOCK_STALE = datetime.timedelta(minutes=10)
+RETRY_AFTER = datetime.timedelta(hours=1)   # a refresh that keeps failing is retried at most this often
 NET_TIMEOUT = 8
 VERSION_RE = re.compile(r"^\d+(\.\d+)+([-+.][0-9A-Za-z.-]+)?$")
 
@@ -49,8 +51,14 @@ MARKETPLACES = ("claude-plugins-official", KIT_MARKETPLACE)
 LIST_ITEM_CHARS = 160
 # Secrets that could sit in a hook command or a permission rule. Each match is replaced by "…".
 SECRET_RES = [
-    re.compile(r"(?i)\b(bearer|basic|token|authorization|password|passwd|secret|api[_-]?key)(\s*[:=]?\s*)[^\s'\",)]+"),
-    re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)=[^\s'\",)]+"),           # NAME=value
+    # A whole header value: everything after "Authorization:" up to the closing quote or the line's end.
+    re.compile(r"(?i)\b((?:proxy-)?authorization|x-api-key|cookie)(\s*[:=]\s*)[^'\"\n]+"),
+    # A keyword, then its value, and the value after a scheme word ("token Bearer x", "basic x").
+    re.compile(r"(?i)\b(bearer|basic|token|password|passwd|pwd|secret|api[_-]?key)(\s*[:=]?\s*)"
+               r"(?:(?:bearer|basic|token)\s+)?[^\s'\",)]+"),
+    re.compile(r"(?i)(://)[^/\s'\"@]+@"),                                  # scheme://user:pass@host
+    re.compile(r"(\s(?:-u|--user|--password)[\s=]+)[^\s'\"]+"),           # curl -u user:pass
+    re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)=[^\s'\",)]+"),                 # NAME=value
     re.compile(r"\b(?:gh[pousr]_|github_pat_|sk-|xox[abpr]-|AKIA)[A-Za-z0-9_-]+"),
     # A long opaque string with both letters and digits (a token or key, not a tool name like mcp__x__y).
     re.compile(r"(?=[A-Za-z0-9_+/=-]*\d)(?=[A-Za-z0-9_+/=-]*[A-Za-z])[A-Za-z0-9_+/=-]{20,}"),
@@ -74,8 +82,12 @@ def load(p: Path):
         return None
 
 
-def git(repo, *args, timeout=10):
+GIT_TIMEOUT = [10]  # the hook lowers it, to stay inside its own 5 s
+
+
+def git(repo, *args, timeout=None):
     """stdout of a git command in repo, stripped, or None when it fails."""
+    timeout = timeout or GIT_TIMEOUT[0]
     env = dict(os.environ, GIT_TERMINAL_PROMPT="0", GIT_OPTIONAL_LOCKS="0")
     try:
         r = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True,
@@ -98,7 +110,8 @@ def older(installed, latest) -> bool | None:
     a, b = vkey(installed), vkey(latest)
     if a is None or b is None:
         return installed != latest
-    return a < b
+    n = max(len(a), len(b))
+    return a + (0,) * (n - len(a)) < b + (0,) * (n - len(b))
 
 
 def short(sha) -> str:
@@ -113,9 +126,12 @@ def when(iso) -> str:
 
 
 def redact(s: str) -> str:
-    s = SECRET_RES[0].sub(lambda m: m.group(1) + m.group(2) + "…", s)
-    s = SECRET_RES[1].sub(lambda m: m.group(1) + "=…", s)
-    for r in SECRET_RES[2:]:
+    for r in SECRET_RES[:2]:
+        s = r.sub(lambda m: m.group(1) + m.group(2) + "…", s)
+    s = SECRET_RES[2].sub(lambda m: m.group(1) + "…@", s)
+    s = SECRET_RES[3].sub(lambda m: m.group(1) + "…", s)
+    s = SECRET_RES[4].sub(lambda m: m.group(1) + "=…", s)
+    for r in SECRET_RES[5:]:
         s = r.sub("…", s)
     return s
 
@@ -303,10 +319,12 @@ def kit_rows(rec: dict, latest: dict) -> list:
                        f"{tilde(kit)} isn't a git checkout, so its version can't be compared"))
     elif rec.get("commit") and rec["commit"] != head:
         n = git(kit, "rev-list", "--count", f"{rec['commit']}..{head}")
-        ahead = f"{n} commit{'s' if n != '1' else ''}" if n and n != "0" else "a different commit"
+        if n and n != "0":
+            where = f"{n} commit{'s' if n != '1' else ''} ahead, at {short(head)}"
+        else:
+            where = f"at a different commit, {short(head)}"
         out.append(row("kit", "claude-kit", "behind", rec["commit"], head,
-                       f"settings built from {short(rec['commit'])}; the kit checkout is {ahead} ahead, at {short(head)}",
-                       reinstall))
+                       f"settings built from {short(rec['commit'])}; the kit checkout is {where}", reinstall))
     else:
         dirty = " (from uncommitted changes)" if rec.get("dirty") else ""
         out.append(row("kit", "claude-kit", "ok", rec.get("commit"), head,
@@ -674,6 +692,7 @@ def cmd_refresh() -> int:
     if not lock(h):
         return 0
     try:
+        (state_dir(h) / "attempted").touch()
         run_check(h, offline=False)
     finally:
         unlock(h)
@@ -682,17 +701,35 @@ def cmd_refresh() -> int:
 
 def spawn_refresh(h: Path):
     """Start a refresh that outlives the hook, with its stdio closed so the hook returns at once."""
-    p = state_dir(h) / "refresh.lock"
-    try:
-        if now().timestamp() - p.stat().st_mtime < LOCK_STALE.total_seconds():
-            return
-    except FileNotFoundError:
-        pass
+    for name, wait in (("refresh.lock", LOCK_STALE), ("attempted", RETRY_AFTER)):
+        try:
+            if now().timestamp() - (state_dir(h) / name).stat().st_mtime < wait.total_seconds():
+                return
+        except FileNotFoundError:
+            pass
     if os.environ.get("SETUP_CHECK_NO_REFRESH"):
         return
     subprocess.Popen([sys.executable, "-I", os.path.abspath(__file__), "refresh"],
                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                      close_fds=True, start_new_session=True, cwd=str(h))
+
+
+def claim(h: Path, sid: str) -> bool:
+    """The hook can be wired twice (install.sh's settings and /plugin install), and both copies run at
+    once: the first to create this session's marker prints, the other stays quiet. Old markers are cleared."""
+    d = state_dir(h) / "sessions"
+    d.mkdir(parents=True, exist_ok=True)
+    for old in d.iterdir():
+        try:
+            if now().timestamp() - old.stat().st_mtime > REFRESH_AFTER.total_seconds():
+                old.unlink()
+        except OSError:
+            pass
+    try:
+        os.close(os.open(d / hashlib.sha256(sid.encode()).hexdigest()[:24], os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600))
+    except FileExistsError:
+        return False
+    return True
 
 
 def details_hint(h: Path) -> str:
@@ -716,25 +753,15 @@ def cmd_hook() -> int:
         spawn_refresh(h)
     if not snap:
         return 0
-    # The hook can be wired twice (install.sh's settings and /plugin install); say it once per session.
+    GIT_TIMEOUT[0] = 2
     sid = str(data.get("session_id") or "") if isinstance(data, dict) else ""
-    shown = state_dir(h) / "shown"
-    if sid:
-        try:
-            if shown.read_text() == sid:
-                return 0
-        except OSError:
-            pass
     rows = version_rows(h, install_record(h), snap.get("latest") or {}, snap, slow_ok=False)
     line = warning(rows, len(snap.get("drift") or []))
     if not line:
         return 0
     line = f"{line} {details_hint(h)}"
-    if sid:
-        try:
-            shown.write_text(sid)
-        except OSError:
-            pass
+    if sid and not claim(h, sid):
+        return 0
     print(json.dumps({"systemMessage": line,
                       "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": line}}))
     return 0

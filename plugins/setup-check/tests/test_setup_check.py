@@ -50,6 +50,8 @@ class Units(unittest.TestCase):
         self.assertFalse(sc.older("2.10.0", "2.9.9"))
         self.assertIsNone(sc.older(None, "1.0"))
         self.assertTrue(sc.older("abc", "def"))
+        self.assertFalse(sc.older("2.1", "2.1.0"))
+        self.assertTrue(sc.older("2.1", "2.1.1"))
 
     def test_redact(self):
         for s in (f"token={SECRET}", f"Bearer {SECRET}", f"MY_KEY={SECRET}", f"x {SECRET} y",
@@ -57,6 +59,14 @@ class Units(unittest.TestCase):
             self.assertNotIn(SECRET[4:], sc.redact(s))
             self.assertIn("…", sc.redact(s))
         self.assertEqual(sc.redact("mcp__claude_ai_Gmail__send_message"), "mcp__claude_ai_Gmail__send_message")
+        # Short values, values after a scheme word, and credentials in URLs and -u.
+        for s, gone in (("Bash(curl -H 'Authorization: Bearer abcdef123' x)", "abcdef123"),
+                        ("Authorization: Basic dXNlcjpwdw==", "dXNlcjpw"),
+                        ("Authorization: token ghp_x", "ghp_x"), ("token Bearer q1w2", "q1w2"),
+                        ("curl -u bob:hunter2 https://h", "hunter2"), ("https://bob:hunter2@h/x", "hunter2"),
+                        ("postgres://u:pw9@h", "pw9"), ("password hunter2", "hunter2"), ("api_key=k9", "k9")):
+            self.assertNotIn(gone, sc.redact(s), s)
+        self.assertEqual(sc.redact("Bash(git push * --force*)"), "Bash(git push * --force*)")
 
     def test_ignore(self):
         e = sc.ignore_entries("intro\n- `agents/x.md` — why (2026-01-01)\n- no backticks\n")
@@ -214,6 +224,13 @@ class EndToEnd(unittest.TestCase):
         self.assertLess(took, 5)
         self.assertEqual(self.hook(env=env)[0], "", "a second hook in the same session stays quiet")
         self.assertNotEqual(self.hook("s2", env=env)[0], "")
+        # Wired twice (base settings and the plugin), both copies start together: one line between them.
+        cmd = self.hook_command()
+        payload = json.dumps({"session_id": "both", "source": "startup"})
+        procs = [subprocess.Popen(["/bin/sh", "-c", cmd], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True,
+                                  env=dict(env, SETUP_CHECK_NO_REFRESH="1")) for _ in range(4)]
+        outs = [p.communicate(payload, timeout=30)[0] for p in procs]
+        self.assertEqual(sum(1 for o in outs if o.strip()), 1, outs)
 
         # Catching up clears it: the hook re-reads the running version without a new lookup.
         (self.claude / "skills" / "stray").unlink()
@@ -257,6 +274,8 @@ class EndToEnd(unittest.TestCase):
         stale = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=2)).isoformat()
         old["checked_at"] = stale
         snap.write_text(json.dumps(old))
+        past = time.time() - 2 * 86400  # the last refresh attempt, two days ago too
+        os.utime(self.claude / "setup-check" / "attempted", (past, past))
         subprocess.run(["/bin/sh", "-c", self.hook_command()], input="{}", env=env, capture_output=True, text=True,
                        timeout=10)
         deadline = time.monotonic() + 30
