@@ -1,6 +1,8 @@
 # claude-kit
 
-claude-kit sets up [Claude Code](https://code.claude.com), the version of Claude that works with the files on your computer. It gives Claude a short set of working rules, cautious default settings, and skills for starting tasks, keeping one session as your chief of staff, checking changes before they ship, and logging what slows you down. It works whether or not you keep your work in git, and you can set it up without opening a terminal.
+claude-kit keeps your [Claude Code](https://code.claude.com) setup current. Claude Code, claude.ai and the Claude platform change quickly, and so do the best ways to use them, so a setup kept by hand falls behind. The kit writes the setup down as files: shared working rules, cautious default settings and skills, which one installer applies to `~/.claude`. When the kit changes, you pull it and rerun the installer, and your own rules and settings, kept in a personal layer the installer never overwrites, carry over unchanged.
+
+Claude Code is the version of Claude that works with the files on your computer. The kit gives Claude a short set of working rules, cautious default settings, and skills for starting tasks, keeping one session as your chief of staff, checking changes before they ship, and logging what slows you down. It works whether or not you keep your work in git, and you can set it up without opening a terminal.
 
 ## Getting started
 
@@ -67,7 +69,37 @@ Options: `--profile <path>` uses a profile kept elsewhere, `--skip-repos` skips 
 
 ## What the setup writes
 
-Whichever route you take, you get the same files, most of them in `~/.claude`, the folder Claude Code reads at the start of every session:
+Whichever route you take, you get the same files, most of them in `~/.claude`, the folder Claude Code reads at the start of every session. The kit and your personal layer are the two sources; the installer reads your profile and builds `~/.claude` from both:
+
+```mermaid
+flowchart LR
+  subgraph kit["claude-kit (this repo)"]
+    core["starter/core.md<br/>shared rules"]
+    base["starter/settings.json<br/>safe defaults and hooks"]
+    plugins["plugins/*/skills<br/>skills"]
+    gstart["starter/gotchas.md<br/>empty starter"]
+  end
+  subgraph me["Your personal layer<br/>(~/.claude/me, or a private repo)"]
+    prof["profile<br/>installer choices"]
+    mine["CLAUDE.md<br/>your own rules"]
+    over["settings.overrides.json<br/>your settings"]
+  end
+  inst(["install.sh"])
+  prof -- read by --> inst
+  subgraph home["~/.claude"]
+    cm["CLAUDE.md<br/>two @imports"]
+    st["settings.json<br/>rebuilt every run"]
+    sk["skills/*<br/>links"]
+    got["gotchas.md<br/>created once"]
+  end
+  inst -- builds --> home
+  base -- merged --> st
+  over -- merged over the base --> st
+  plugins -- "linked, for the profile's plugins" --> sk
+  gstart -- copied if missing --> got
+  cm -. "imports 1st" .-> core
+  cm -. "imports 2nd" .-> mine
+```
 
 - **`~/.claude/CLAUDE.md`**: two import lines that load the kit's shared rules (`starter/core.md`) and then your own.
 - **Your own `CLAUDE.md`**, in a folder of your own (`~/.claude/me` by default), where you write who you are, where your files live, what stays private and how you write. Several skills read it (see [What each skill reads from your CLAUDE.md](#what-each-skill-reads-from-your-claudemd)). The folder also holds your `profile` (the installer's choices) and, if you have one, `settings.overrides.json`. `install.sh` never overwrites them (it creates your `CLAUDE.md` and profile only when they're missing); the guided setup replaces them only with the version you approved in its preview, backing up the old one first. You can keep this folder in a private repo to use it on a second computer.
