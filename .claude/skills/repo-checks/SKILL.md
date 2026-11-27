@@ -1,5 +1,5 @@
 ---
-name: verify
+name: repo-checks
 description: How to verify a change in claude-kit end to end before opening a PR. Covers plugin manifest validation, the private-terms scan, plugin unit tests, and driving Docket (the chief-of-staff page) in a browser against the sample questions file on a spare port. Run it before every PR; the PR's `Verified by:` line reports what it showed.
 ---
 

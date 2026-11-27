@@ -31,6 +31,7 @@ STARTER = KIT / "starter"
 STAMP = "kit-install.json"  # in ~/.claude: what the settings were built from, read by the setup check
 OVERRIDES = "settings.overrides.json"  # in the personal layer, unless the profile names another file
 DEFAULT_PLUGINS = ["start-task", "chief-of-staff", "verify-setup", "papercuts", "setup-check"]
+RETIRED_PLUGINS = ("stacked-pr-guard", "downloads-tidy", "disk-cleanup-inventory")  # no longer shipped; a profile naming one gets a note
 SHELLS = ("zsh", "bash", "none")
 KEYS = ("kit", "me", "plugins", "shell", "shell_file", "settings", "gotchas", "papercuts", "repos_dir", "repos")
 GITIGNORE = ("CLAUDE.local.md", "**/.claude/settings.local.json", ".playwright-mcp/", ".claude/worktrees/")
@@ -111,6 +112,8 @@ def resolve(profile_path: Path | None) -> dict:
     known = all_plugins()
     if names == ["all"]:
         names = known
+    cfg["retired"] = [n for n in dict.fromkeys(names) if n in RETIRED_PLUGINS]
+    names = [n for n in names if n not in RETIRED_PLUGINS]
     unknown = [n for n in names if n not in known]
     if unknown:
         raise ProfileError(f"unknown plugin(s) {', '.join(unknown)} (known: all, {', '.join(known)})")
@@ -519,9 +522,12 @@ class Installer:
             self.say("cloned", f"{slug} -> {dest}")
 
     def checks(self):
-        for tool, why in (("jq", "the status line needs it"), ("gh", "the stacked-PR guard does nothing without it")):
+        for tool, why in (("jq", "the status line needs it"),):
             if not shutil.which(tool):
                 self.notes.append(f"{tool} isn't installed: {why}.")
+        if self.cfg["retired"]:
+            self.notes.append(f"The kit no longer ships {', '.join(self.cfg['retired'])}; "
+                              "remove it from your profile's plugins line, and the installer skips it meanwhile.")
 
     def run(self, skip_repos: bool = False):
         self.mkdir(home() / ".claude")

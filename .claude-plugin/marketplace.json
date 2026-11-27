@@ -19,24 +19,9 @@
       "description": "Tells you when your Claude Code setup has fallen behind or drifted: the CLI, your plugins and the kit against their latest versions, and what ~/.claude holds that the kit and your personal layer don't. One line at session start when something is behind; it never updates anything itself."
     },
     {
-      "name": "stacked-pr-guard",
-      "source": "./plugins/stacked-pr-guard",
-      "description": "Blocks deleting a branch that open pull requests are based on, so GitHub doesn't close the PRs stacked on it."
-    },
-    {
       "name": "codebase-audit",
       "source": "./plugins/codebase-audit",
       "description": "A full critical review of a codebase or component, with severity-rated findings checked against current best practice and filed as GitHub issues once you confirm."
-    },
-    {
-      "name": "disk-cleanup-inventory",
-      "source": "./plugins/disk-cleanup-inventory",
-      "description": "A tiered inventory of what is using disk space, delivered as a checklist worksheet; deletes only what you tick."
-    },
-    {
-      "name": "downloads-tidy",
-      "source": "./plugins/downloads-tidy",
-      "description": "Files and declutters ~/Downloads against your own filing rules and existing folders, leaving it flat."
     },
     {
       "name": "chief-of-staff",
@@ -71,12 +56,12 @@
     {
       "name": "visual-inventory",
       "source": "./plugins/visual-inventory",
-      "description": "Report pages read at a glance: an items \u00d7 checks grid on a fixed five-status scale, findings by kind, the top five and per-item detail, rendered from one JSON file into one self-contained HTML page."
+      "description": "Report pages read at a glance: an items × checks grid on a fixed five-status scale, findings by kind, the top five and per-item detail, rendered from one JSON file into one self-contained HTML page."
     },
     {
       "name": "verify-setup",
       "source": "./plugins/verify-setup",
-      "description": "Writes a repo's own verify skill (how to check a change there end to end) from the repo's real commands, running each one before writing it down."
+      "description": "Writes a repo's own repo-checks skill (how to check a change there end to end) from the repo's real commands, running each one before writing it down."
     }
   ]
 }

@@ -118,11 +118,11 @@ The kit's base settings ([`starter/settings.json`](starter/settings.json)) start
 - **Nothing is pre-approved.** There are no allow rules, so Claude asks before `git push` and `gh pr merge` as it would without the kit.
 - **Outbound actions ask first.** Pushes that force or delete, and connected tools that send, share, forward or trash, always ask, even if you add allow rules later.
 - **No model, effort or permission mode is set**, so Claude Code's own defaults apply until you choose.
-- **The hooks stay quiet.** The gotcha hook says something only when a command or error matches a line in your gotchas file, which starts empty. The stacked-PR guard does nothing without the GitHub CLI (`gh`). Both do nothing if their script is missing.
+- **The hooks stay quiet.** The gotcha hook says something only when a command or error matches a line in your gotchas file, which starts empty. It does nothing if its script is missing.
 
 ## Platforms
 
-The kit is developed and tested on macOS. The installer's tests also run its bash setup, and the plugins have Linux fallbacks (the disk-cleanup commands, the PDF builder's Chrome path, the default browser for Docket), but no one has run the whole kit on Linux yet. Docket's Attach button drives macOS's Terminal app, so it appears only on macOS. `kit-secret` uses the macOS keychain, or `secret-tool` on Linux. Windows is untested.
+The kit is developed and tested on macOS. The installer's tests also run its bash setup, and the plugins have Linux fallbacks (the PDF builder's Chrome path, the default browser for Docket), but no one has run the whole kit on Linux yet. Docket's Attach button drives macOS's Terminal app, so it appears only on macOS. `kit-secret` uses the macOS keychain, or `secret-tool` on Linux. Windows is untested.
 
 ## Plugins
 
@@ -131,14 +131,11 @@ The kit is developed and tested on macOS. The installer's tests also run its bas
 | [kit-setup](plugins/kit-setup) | skill | Guided setup of the kit from inside Claude Code, no terminal needed: interviews you, shows the `CLAUDE.md` and settings it would write, writes them only on your yes through the kit's installer, backs up what it replaces, and offers the extras. |
 | [start-task](plugins/start-task) | skill | Starts a task in a fresh Claude session: sizes it, settles open decisions with you, and writes its opening progress record (goal, what is settled, the checks that define done, what is out of scope) where the new session loads it. Tasks in a git repo get a worktree; other tasks get a plain folder. |
 | [chief-of-staff](plugins/chief-of-staff) | skill | Runs one chief-of-staff session across all your projects: it interviews you on the questions waiting on you, settles what your recorded decisions already answer, dispatches tasks to background sessions and steers them by message. Includes Docket, a local task board (waiting on you, waiting on others, someday, done) to filter, move and answer the waiting items from. |
-| [verify-setup](plugins/verify-setup) | skill | Writes a repo's own `verify` skill, how to check a change there end to end, from the repo's real commands, running each one before writing it down. |
+| [verify-setup](plugins/verify-setup) | skill | Writes a repo's own `repo-checks` skill, how to check a change there end to end, from the repo's real commands, running each one before writing it down. |
 | [papercuts](plugins/papercuts) | skill + hook | A sweep skill that triages a papercut log into gotchas, repo PRs you pick and open decisions, and a hook that hands a session the one gotcha line its command or error needs. |
-| [stacked-pr-guard](plugins/stacked-pr-guard) | hook | Blocks `gh pr merge --delete-branch` and `git push --delete` when open PRs are based on the branch, since GitHub closes those PRs instead of retargeting them. |
 | [human-handoff](plugins/human-handoff) | skill | Packages finished work for a human collaborator and drafts the covering note; sends only on your word. |
 | [codebase-audit](plugins/codebase-audit) | skill | A full critical review of a codebase or component, with severity-rated findings checked against current best practice and filed as GitHub issues once you confirm. |
 | [residue-sweep](plugins/residue-sweep) | skill | Removes development residue (history-narrating comments, stale names, dead code, doc drift) without changing behavior. |
-| [disk-cleanup-inventory](plugins/disk-cleanup-inventory) | skill | A tiered inventory of what is using disk space, delivered as a checklist worksheet; deletes only what you tick. |
-| [downloads-tidy](plugins/downloads-tidy) | skill | Files and declutters `~/Downloads` against your own filing rules and existing folders, leaving it flat. |
 | [speaker-prep](plugins/speaker-prep) | skill | Turns a deck or brief into talking points or a timed script, with print-ready PDFs. |
 | [visual-inventory](plugins/visual-inventory) | skill | Report pages read at a glance: an items × checks grid on a fixed five-status scale, findings by kind, the top five and per-item detail, rendered from one JSON file into one self-contained HTML page. [Example](plugins/visual-inventory/skills/visual-inventory/assets/example.html). |
 
@@ -156,8 +153,6 @@ Your own `CLAUDE.md` is where skills find your specifics. Each skill works witho
 | chief-of-staff | Where the questions file lives; a launcher or viewer for it; which projects keep their questions in a shared tool; your drafting rules; your verification rules | `~/.claude/chief-of-staff/questions.md` |
 | papercut-sweep | Where the papercut log and gotchas file are; where your repos live and their GitHub owners; what must never reach GitHub; your rules for commit and PR text; any command that records what a session is working on | Asks where the log is |
 | human-handoff | Your rules for drafting in your voice; where the handoff tally goes | Tally at `~/.claude/human-handoff/tally.md` |
-| downloads-tidy | Where your repos and datasets live, and any dataset that must never leave the computer (it also reads `~/Documents/CLAUDE.md` for your filing rules) | Asks where repos and datasets live |
-| disk-cleanup-inventory | Where your repos, projects and datasets live | Asks, or starts from the largest folders |
 | visual-inventory | Where report pages go, who opens them, and what must not appear in them | Saves the page in a folder named for its subject |
 | verify-setup, codebase-audit, residue-sweep | Nothing of yours: they read the repo's own `CLAUDE.md` and README | |
 | speaker-prep | Nothing | |
@@ -181,15 +176,9 @@ The installer and kit-setup set these up when you choose them. Without either, s
 
 - **[kit-secret](extras/secrets/README.md)** sets secrets without anyone pasting them into a chat: from a hidden prompt, or a generator, into the macOS keychain or `secret-tool`, and from there through a pipe to `gh secret set`.
 
-- **[Context profile](extras/context-profile/context_profile.py)** reads your local session transcripts and reports how large sessions' context gets, where token cost falls by context size, and how fast context climbs in the first 30 turns. Use it to choose a compaction window or task size from your own data. `--split "<text>"` compares sessions whose first message contains that text, such as your launcher's prompt, with the rest:
-
-  ```sh
-  python3 extras/context-profile/context_profile.py --days 30 --split "Start on the task in"
-  ```
-
 ## Working on the kit
 
-[`CLAUDE.md`](CLAUDE.md) holds the rules for changing the kit, and [`.claude/skills/verify/SKILL.md`](.claude/skills/verify/SKILL.md) how to check a change before a PR. The installer's own tests run with `python3 -m unittest discover installer/tests`.
+[`CLAUDE.md`](CLAUDE.md) holds the rules for changing the kit, and [`.claude/skills/repo-checks/SKILL.md`](.claude/skills/repo-checks/SKILL.md) how to check a change before a PR. The installer's own tests run with `python3 -m unittest discover installer/tests`.
 
 ## License
 

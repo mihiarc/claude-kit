@@ -53,7 +53,7 @@ otherwise find the canonical next item (a progress record's Next, a roadmap, an 
 propose it in one line. Ask if it's ambiguous.
 
 Then decide **whether the task has a repo**. A task that changes files in a git repo takes the
-git path: a worktree, a branch, a PR and the repo's verify skill. Any other task takes the
+git path: a worktree, a branch, a PR and the repo's repo-checks skill. Any other task takes the
 no-repo path, with none of those four: a document, an email, a form, an errand, and code or data
 in a folder that isn't under git. When the user's CLAUDE.md says they don't work in git, every
 task takes the no-repo path. Ask if it's unclear.
@@ -75,7 +75,7 @@ only when the task is in unfamiliar territory. Gather:
 3. **What this session learned that isn't written down**, the item most often lost: the approach
    that failed and why, the value hard-coded for a reason, the question the user already settled.
    Scan back through the conversation rather than trusting memory.
-4. **How the repo verifies a change** (git path): its `.claude/skills/verify/SKILL.md` if it has one, its CI, and its test and build commands. If it has no verify skill, the task's first step is writing one with `verify-setup`; if it has no CI, say so in the record.
+4. **How the repo verifies a change** (git path): its `.claude/skills/repo-checks/SKILL.md` (or an older `.claude/skills/verify/SKILL.md`) if it has one, its CI, and its test and build commands. If it has neither, the task's first step is writing one with `verify-setup`; if it has no CI, say so in the record.
 5. **The base** (git path): the commit the task starts from. Work that lives only on an unmerged branch or
    in uncommitted files is load-bearing; a worktree holds committed files only.
 6. **The checks that define done**: the test, command, number or figure that shows the task is
@@ -123,10 +123,10 @@ Risk: <the biggest unknown, to check first, and the pivot if it fails.>   <omit 
 - <decision>: <the answer>. (<who>, <date>)
 - <approach tried>: fails because <why>. Don't retry.
 - Model <alias>, effort <level>: <one-line reason>. (<the session that started the task>)
-- Verification: run the repo's checks and its `verify` skill before opening a PR, never open one on a failing check, end the PR body with a `Verified by:` line, and after three failed rounds on the same check stop and report. (user's CLAUDE.md "Verification")
+- Verification: run the repo's checks and its `repo-checks` skill before opening a PR, never open one on a failing check, end the PR body with a `Verified by:` line, and after three failed rounds on the same check stop and report. (user's CLAUDE.md "Verification")
 
 ### Done when
-- <end-to-end check>: <what drives the real thing (the repo's `verify` skill, or the app, API, live session or pipeline run if it has none) and what it must show>
+- <end-to-end check>: <what drives the real thing (the repo's `repo-checks` skill, or the app, API, live session or pipeline run if it has none) and what it must show>
 - <check>: <the command, test, number or figure, and what it must show>
 - Independent review: before anyone is asked to merge, <who reviews: a fresh subagent given the diff and the repo's rules but not your conclusions, the `code-review` skill at `high` in a fresh context, or the session this task reports to> reviews the PR. Fix the confirmed findings, let CI rerun at the new head, and add a `Reviewed by:` line beside `Verified by:`: who reviewed, what they found and what was fixed.
 - <how the work lands: the project's branch, commit and PR norms, and the PR's `Verified by:` line>
