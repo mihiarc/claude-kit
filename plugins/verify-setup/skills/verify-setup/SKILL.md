@@ -12,7 +12,7 @@ every command in it was run and worked, so this skill runs each one before writi
 Claude Code bundles `/run` and `/verify`, which launch the app and check a change against it. The
 file this skill writes is named `pr-checks`, not `verify`, so it doesn't replace the bundled
 `/verify`: it holds the repo's own checks and the PR's report, and leaves launching the app to
-`/run` and `/verify`, which follow the recipe that `/run-skill-generator` records.
+`/run` and `/verify`, which follow the recipe `/run-skill-generator` records when the repo has one.
 
 ## Step 1 — Find what the repo already checks
 
