@@ -131,7 +131,7 @@ The kit is developed and tested on macOS. The installer's tests also run its bas
 | [kit-setup](plugins/kit-setup) | skill | Guided setup of the kit from inside Claude Code, no terminal needed: interviews you, shows the `CLAUDE.md` and settings it would write, writes them only on your yes through the kit's installer, backs up what it replaces, and offers the extras. |
 | [start-task](plugins/start-task) | skill | Starts a task in a fresh Claude session: sizes it, settles open decisions with you, and writes its opening progress record (goal, what is settled, the checks that define done, what is out of scope) where the new session loads it. Tasks in a git repo get a worktree; other tasks get a plain folder. |
 | [chief-of-staff](plugins/chief-of-staff) | skill | Runs one chief-of-staff session across all your projects: it interviews you on the questions waiting on you, settles what your recorded decisions already answer, dispatches tasks to background sessions and steers them by message. Includes Docket, a local task board (waiting on you, waiting on others, someday, done) to filter, move and answer the waiting items from. |
-| [verify-setup](plugins/verify-setup) | skill | Writes a repo's own `repo-checks` skill, how to check a change there end to end, from the repo's real commands, running each one before writing it down. |
+| [verify-setup](plugins/verify-setup) | skill | Writes a repo's own `pr-checks` skill, how to check a change there end to end, from the repo's real commands, running each one before writing it down. |
 | [papercuts](plugins/papercuts) | skill + hook | A sweep skill that triages a papercut log into gotchas, repo PRs you pick and open decisions, and a hook that hands a session the one gotcha line its command or error needs. |
 | [human-handoff](plugins/human-handoff) | skill | Packages finished work for a human collaborator and drafts the covering note; sends only on your word. |
 | [codebase-audit](plugins/codebase-audit) | skill | A full critical review of a codebase or component, with severity-rated findings checked against current best practice and filed as GitHub issues once you confirm. |
@@ -178,7 +178,7 @@ The installer and kit-setup set these up when you choose them. Without either, s
 
 ## Working on the kit
 
-[`CLAUDE.md`](CLAUDE.md) holds the rules for changing the kit, and [`.claude/skills/repo-checks/SKILL.md`](.claude/skills/repo-checks/SKILL.md) how to check a change before a PR. The installer's own tests run with `python3 -m unittest discover installer/tests`.
+[`CLAUDE.md`](CLAUDE.md) holds the rules for changing the kit, and [`.claude/skills/pr-checks/SKILL.md`](.claude/skills/pr-checks/SKILL.md) how to check a change before a PR. The installer's own tests run with `python3 -m unittest discover installer/tests`.
 
 ## License
 

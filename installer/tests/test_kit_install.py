@@ -88,6 +88,9 @@ class TestProfile(ScratchHome):
             ki.resolve(self.profile("plugins = no-such-plugin\n"))
         cfg = ki.resolve(self.profile("plugins = papercuts stacked-pr-guard\n"))
         self.assertEqual((cfg["plugins"], cfg["retired"]), (["papercuts"], ["stacked-pr-guard"]))
+        inst = ki.Installer(cfg, dry=True)
+        inst.checks()
+        self.assertTrue(any("no longer ships stacked-pr-guard" in n for n in inst.notes), inst.notes)
 
     def test_errors(self):
         for text in ("kit = /somewhere/else\n", "settings = missing.json\n", "repos = r.txt\n",
