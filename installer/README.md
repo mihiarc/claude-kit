@@ -7,7 +7,7 @@ The terminal route into claude-kit. Clone the kit, then run its `install.sh`:
     ~/src/claude-kit/install.sh --profile <path>   # a profile kept elsewhere, such as in a private repo
     ~/src/claude-kit/install.sh --dry-run          # say what would change and change nothing
 
-It needs `python3`; the status line also needs `jq`, and the stacked-PR guard `gh`. It is safe to rerun: a file or link it replaces is first moved aside as `<file>.bak-<timestamp>` (with `-2`, `-3` added rather than overwriting an earlier backup), and a second run with the same profile changes nothing. It builds `CLAUDE.md` and `settings.json` and reads the repo list before it writes anything, so a mistake in the profile or the overrides stops the run with nothing changed.
+It needs `python3`; the status line also needs `jq`. It is safe to rerun: a file or link it replaces is first moved aside as `<file>.bak-<timestamp>` (with `-2`, `-3` added rather than overwriting an earlier backup), and a second run with the same profile changes nothing. It builds `CLAUDE.md` and `settings.json` and reads the repo list before it writes anything, so a mistake in the profile or the overrides stops the run with nothing changed.
 
 ## What it does
 

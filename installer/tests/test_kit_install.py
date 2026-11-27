@@ -86,6 +86,11 @@ class TestProfile(ScratchHome):
                          ["papercuts", "start-task"])
         with self.assertRaises(ki.ProfileError):
             ki.resolve(self.profile("plugins = no-such-plugin\n"))
+        cfg = ki.resolve(self.profile("plugins = papercuts stacked-pr-guard\n"))
+        self.assertEqual((cfg["plugins"], cfg["retired"]), (["papercuts"], ["stacked-pr-guard"]))
+        inst = ki.Installer(cfg, dry=True)
+        inst.checks()
+        self.assertTrue(any("no longer ships stacked-pr-guard" in n for n in inst.notes), inst.notes)
 
     def test_errors(self):
         for text in ("kit = /somewhere/else\n", "settings = missing.json\n", "repos = r.txt\n",
@@ -361,7 +366,7 @@ class EndToEnd:
                     if event != "SessionStart":
                         self.assertEqual(r.stdout + r.stderr, "", h["command"])
                     ran += 1
-        self.assertGreaterEqual(ran, 5)
+        self.assertGreaterEqual(ran, 4)
 
     def test_shell(self):
         self.install()

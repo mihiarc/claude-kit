@@ -156,7 +156,7 @@ class Scratch(unittest.TestCase):
                     if event != "SessionStart":
                         self.assertEqual(r.stdout + r.stderr, "", h["command"])
                     ran += 1
-        self.assertGreaterEqual(ran, 5)
+        self.assertGreaterEqual(ran, 4)
 
 
 GIT_ANSWERS = {"plugins": ["start-task", "chief-of-staff", "verify-setup", "papercuts"], "shell": "zsh",

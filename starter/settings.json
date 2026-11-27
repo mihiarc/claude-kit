@@ -49,6 +49,13 @@
       "mcp__claude_ai_Resend__share-email"
     ]
   },
+  "pluginConfigs": {
+    "cc-plugin-agents-md@builtin": {
+      "options": {
+        "instructionFiles": "claude-md-and-agents-md"
+      }
+    }
+  },
   "statusLine": {
     "type": "command",
     "command": "f=\"__KIT__/extras/statusline/statusline.sh\"; [ -x \"$f\" ] && \"$f\"",
@@ -56,16 +63,6 @@
   },
   "hooks": {
     "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "f=\"__KIT__/plugins/stacked-pr-guard/hooks/guard_stacked_pr_merge.py\"; [ -f \"$f\" ] || exit 0; python3 -I \"$f\"",
-            "timeout": 40
-          }
-        ]
-      },
       {
         "matcher": "Bash|mcp__.*|WebFetch",
         "hooks": [
