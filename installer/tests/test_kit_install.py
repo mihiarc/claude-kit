@@ -23,6 +23,8 @@ import kit_install as ki  # noqa: E402
 
 CLEAN_ENV = {k: v for k, v in os.environ.items()
              if k not in ("XDG_CONFIG_HOME", "GIT_CONFIG_GLOBAL", "ZDOTDIR", "GOTCHAS_FILE", "CLAUDECODE")}
+# The setup-check hook starts no background lookup (network) in a test HOME.
+CLEAN_ENV["SETUP_CHECK_NO_REFRESH"] = "1"
 
 
 class ScratchHome(unittest.TestCase):
@@ -321,7 +323,10 @@ class EndToEnd:
         self.assertTrue((c / "me" / "profile").is_file())
         self.assertEqual((c / "gotchas.md").read_text(), (self.kit / "starter" / "gotchas.md").read_text())
         links = sorted(p.name for p in (c / "skills").iterdir())
-        self.assertEqual(links, sorted(["start-task", "chief-of-staff", "verify-setup", "papercut-sweep"]))
+        self.assertEqual(links, sorted(["start-task", "chief-of-staff", "verify-setup", "papercut-sweep", "setup-check"]))
+        stamp = json.loads((c / "kit-install.json").read_text())
+        self.assertEqual((stamp["kit"], stamp["me"], stamp["profile"]),
+                         (str(self.kit), str(c / "me"), str(c / "me" / "profile")))
         for l in (c / "skills").iterdir():
             self.assertTrue((l / "SKILL.md").is_file(), l)
         s = json.loads((c / "settings.json").read_text())
